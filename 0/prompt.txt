@@ -1,0 +1,5 @@
+install the entire cli agent skill files in this repo
+
+---
+
+Yes, commit
