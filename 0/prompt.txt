@@ -1,0 +1,9 @@
+ok why are you opening so many popup terminal windows instead of running the process in your own terminal process
+
+---
+
+well were on a windows partition now, so unless you NEED wsl and bash then just use powershell in your own app terminal thing
+
+---
+
+Yes, commit
