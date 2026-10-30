@@ -1,0 +1,13 @@
+ok did it
+
+---
+
+theres no pop up notifcation. no ui and i even restarted orca
+
+---
+
+yes i did both and the windows nots came up for both
+
+---
+
+main and plugin-scaffold
