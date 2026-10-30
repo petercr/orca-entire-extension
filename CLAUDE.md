@@ -20,6 +20,10 @@ Run these with Windows Node from the repo root:
 - `node scripts/orca-harness/launch.mjs <scenario>`, where the scenario is `no-terminal`, `none`,
   `local-entire`, or `terminal <handle>` with a handle from `orca terminal list --json`.
 
+From a WSL terminal, `cd "/mnt/c/Users/pcruc/Web Projects/orca-entire-extension"` and call Windows Node
+by path, `"/mnt/c/Program Files/nodejs/node.exe"`: WSL has `appendWindowsPath=false`, so `node.exe` is
+not on its PATH. `~/orca-entire-extension` is the old WSL copy and has no harness.
+
 To try the plugin in Orca, add this folder under Settings → Plugins → Development folders. After
 editing the worker, use **Restart** on the plugin's row.
 

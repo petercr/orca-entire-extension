@@ -27,3 +27,6 @@ To run the worker inside Orca's own runtime without the GUI (Windows, Orca insta
 ```sh
 node scripts/orca-harness/launch.mjs no-terminal
 ```
+
+From WSL, run it with Windows Node (`node.exe`, or its full path under `/mnt/c` when Windows is not on
+WSL's PATH) from the repo's `/mnt/c/...` path.

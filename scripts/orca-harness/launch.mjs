@@ -6,6 +6,10 @@ import { fileURLToPath } from 'node:url'
 
 if (process.platform !== 'win32') {
   console.error('Run this with Windows Node: it starts Orca.exe.')
+  // WSL may keep Windows off its PATH (appendWindowsPath=false), so name node.exe by its path.
+  if (process.env.WSL_DISTRO_NAME) {
+    console.error('From WSL, in the repo under /mnt/c: "/mnt/c/Program Files/nodejs/node.exe" scripts/orca-harness/launch.mjs <scenario>')
+  }
   process.exit(1)
 }
 
