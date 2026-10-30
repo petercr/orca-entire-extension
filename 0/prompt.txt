@@ -1,0 +1,9 @@
+entire is connected and logged in on both windows and wsl
+
+---
+
+so i ran the command with orca command palette but i got no feedback in the ui
+
+---
+
+Yes, commit
