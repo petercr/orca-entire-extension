@@ -1,0 +1,36 @@
+<pasted_content id="a49e">
+Yes, switch to Claude Desktop. But running inside Orca isn't really the problem. The bigger issue is that this session runs in the old WSL copy of the repo.
+
+**Why running inside Orca is fine**
+- Orca normally keeps its terminals in a separate background process. Quitting, restarting or updating Orca leaves that process running, so a Claude session survives and reconnects. I checked this in Orca's source. The one thing that does end your terminals is Settings → Terminal → Manage Sessions → Restart daemon.
+- Our plugin runs in its own process with timeouts, so a broken plugin can't take your terminals down.
+
+**What's actually wrong with this session**
+- It runs in `~/orca-entire-extension`, the old WSL copy. Entire records this chat against that repo, not the Windows one where the code now lives.
+- Every test and every `entire` or `orca` command has to cross from WSL into Windows, and Orca's WSL settings leak into those Windows programs. For example, the Windows `entire status` I ran from here picked up this session's Linux Claude config path and rejected it.
+
+**For the new session**
+- In Claude Desktop, start a **Local** session (not WSL) on `C:\Users\pcruc\Web Projects\orca-entire-extension`. You have Desktop 4.29 installed, plus Claude Code 2.1.311 on Windows if you'd rather use a terminal.
+- Desktop reads the same settings files as the CLI, so the repo's Entire hooks should work. To confirm, run `entire status` after your first prompt and check that it lists the session. If Desktop was already open when you installed the Entire nightly, restart it so it picks up the new PATH.
+- With Claude outside Orca, you can also restart Orca's terminal daemon, upgrade Orca, or run a test build of Orca without affecting Claude.
+- Staying in Orca would also work, if you open a workspace on the Windows repo (it's already registered in Orca). Either way, stop using this WSL session.
+
+**What I added so the new session has the context**
+A Windows session won't see my memory or this chat, so I put what it needs into the repo:
+- **`CLAUDE.md`** points to `docs/PLAN.md` and lists the commands, gotchas and rules. The rules: Entire setup commands are yours to run, Claude asks before writing anything to Entire, and trail text is treated as untrusted.
+- **The test harness** was in my temporary folder and would have disappeared with this session. It's now in `scripts/orca-harness/`. It runs the plugin inside `Orca.exe` the way Orca does, without the UI: `node scripts/orca-harness/launch.mjs no-terminal`.
+- **Docs:** I updated the README, and `docs/PLAN.md` now says Windows runs the Entire nightly.
+- **Checked:** all 9 tests pass and the harness worked in every scenario. Pointed at this session's own Orca terminal, it reached the WSL Entire nightly (205 ms) and found the repo enabled. It found no trail on `main`, as expected.
+
+**Your setup is good.** The Entire nightly and `git-remote-entire` are on the Windows PATH, and no older copy gets in the way. Claude Code's hooks are up to date. Codex's hooks in this repo are out of date, which only matters if you use Codex here. The fix is `entire agent add codex`. It rewrites the committed `.codex/hooks.json`, so run it on a branch.
+
+**Before you close this session**
+- Nothing is committed. Have the new session commit on a branch, so the Entire checkpoint ends up in the Windows repo with the code.
+- This planning chat would only become an Entire checkpoint through a commit in the WSL copy. If you don't need it on record there, you can delete that copy. The raw chat log stays in `~/.claude` either way.
+
+Suggested first prompt for the new session: *"Read CLAUDE.md and docs/PLAN.md. We're at the phase 0.5 smoke test."*
+</pasted_content id="a49e">
+
+---
+
+Yes, commit
