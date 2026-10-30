@@ -1,0 +1,15 @@
+ok 1st off theres no Restart button or option with the plugins. I did turn it off and on, also it the refresh button. I got nothing about any notifiaction
+
+---
+
+<task-notification>
+<task-id>b1wn905wo</task-id>
+<tool-use-id>toolu_018mQPknkT51XKUoeGpxHwRy</tool-use-id>
+<output-file>C:\Users\pcruc\AppData\Local\Temp\claude\C--Users-pcruc-Web-Projects-orca-entire-extension\b9941814-e959-422d-9732-f2e5fbe2575f\tasks\b1wn905wo.output</output-file>
+<status>failed</status>
+<summary>Background command "Find Orca profile settings that list development folders" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+Yes, commit
