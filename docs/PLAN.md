@@ -3,7 +3,7 @@
 Bring Entire (trails, findings, approvals, checkpoints) into Orca's UI as an Orca plugin, the way
 Orca already surfaces GitHub pull requests and checks.
 
-Status: phase 0 done. Next: the smoke test, then phase 1 spikes.
+Status: phases 0 and 0.5 done. Next: phase 1 spikes.
 
 ## Environment
 
@@ -84,8 +84,8 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 ## Phases
 
 - [x] 0. Repo on Windows, Entire enabled in WSL and on Windows, project added to Orca.
-- [ ] 0.5 Smoke test: load the dev plugin and run **Entire: Check connection** in a WSL workspace and in
-      this one.
+- [x] 0.5 Smoke test: load the dev plugin and run **Entire: Check connection** in a WSL workspace and in
+      this one. Both reported connected in a Windows notification.
 - [ ] 1. Spikes: real trail JSON fixtures (create a test trail), `trail watch` through `wsl.exe` versus
       the 5-minute reaper, the plugin consent flow, latency budget.
 - [ ] 2. v0.1 on shipped Orca: commands (show trail, findings, approve, merge, create, refresh) and

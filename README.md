@@ -8,7 +8,8 @@ it works within, and the spike results are in [docs/PLAN.md](docs/PLAN.md).
 Requires Orca 1.4.245 or later, and the Entire CLI logged in wherever your repos live (WSL or Windows).
 
 1. In Orca, open **Settings → Plugins** and turn plugins on.
-2. Click **Development folders…**, add this folder, then review and enable **Entire**.
+2. From the **⋯** menu, open **Development folders…**, add this folder, then review and enable
+   **Entire**.
 3. Focus a workspace and run **Entire: Check connection** from the command palette.
 
 Orca runs a development folder in place and reloads it when its manifest changes. After editing the
