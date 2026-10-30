@@ -11,8 +11,8 @@ Requires Orca 1.4.245 or later, and the Entire CLI logged in wherever your repos
 2. Click **Development folders…**, add this folder, then review and enable **Entire**.
 3. Focus a workspace and run **Entire: Check connection** from the command palette.
 
-Orca reloads the plugin when its manifest changes; after editing the worker, use **Restart** on the
-plugin's row.
+Orca runs a development folder in place and reloads it when its manifest changes. After editing the
+worker, turn the plugin off and on so the next command starts a fresh worker.
 
 ## Develop
 

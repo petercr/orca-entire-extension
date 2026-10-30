@@ -24,8 +24,11 @@ From a WSL terminal, `cd "/mnt/c/Users/pcruc/Web Projects/orca-entire-extension"
 by path, `"/mnt/c/Program Files/nodejs/node.exe"`: WSL has `appendWindowsPath=false`, so `node.exe` is
 not on its PATH. `~/orca-entire-extension` is the old WSL copy and has no harness.
 
-To try the plugin in Orca, add this folder under Settings → Plugins → Development folders. After
-editing the worker, use **Restart** on the plugin's row.
+To try the plugin in Orca, add this folder under Settings → Plugins → Development folders. Orca then
+runs it in place. Installing it from the folder any other way copies it into
+`%APPDATA%\orca\plugins` (a `local-path` entry in `plugins.lock.json`), and that copy ignores later
+edits. There is no Restart button: after editing the worker, turn the plugin off and on so the next
+command starts a fresh worker. Orca reloads a development folder's manifest by itself.
 
 ## Things that bite
 
