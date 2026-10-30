@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "execution": "trusted-worker",
+  "id": "entire",
+  "publisher": "petercr",
+  "name": "Entire",
+  "version": "0.0.1",
+  "description": "Entire trails, findings and checkpoints for your Orca workspaces.",
+  "engines": { "orca": ">=1.4.245" },
+  "pluginApi": 1,
+  "main": "src/worker/main.mjs",
+  "contributes": {
+    "commands": [{ "id": "doctor", "title": "Entire: Check connection", "when": "workspace" }]
+  },
+  "capabilities": [{ "kind": "workspace:read" }]
+}
