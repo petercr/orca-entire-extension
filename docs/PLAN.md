@@ -26,6 +26,8 @@ Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/
   path; `notifications.show`; `terminal.sendText` (worker only); `storage.*`, `secrets.*` and
   `settings.*` (worker only).
 - Events (at most 3): `workspace.created`, `workspace.removed`, `agent.status.changed`.
+- The command palette ignores a command's return value. The Run button in Settings → Plugins shows its
+  first 200 characters in a toast. Worker stdout and stderr go to the plugin's Logs (last 200 lines).
 - Panels are sealed: Orca injects CSP `connect-src 'none'`, blocks links and `window.open`, and gives a
   panel no channel to its own worker. A panel cannot show Entire data yet.
 - Reserved but not shipped: `taskSources`, `statusBarItems`, `sidebarCards`, `connections`, `settings`,

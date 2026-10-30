@@ -13,5 +13,5 @@
   "contributes": {
     "commands": [{ "id": "doctor", "title": "Entire: Check connection", "when": "workspace" }]
   },
-  "capabilities": [{ "kind": "workspace:read" }]
+  "capabilities": [{ "kind": "workspace:read" }, { "kind": "notifications:show" }]
 }

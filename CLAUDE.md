@@ -36,6 +36,8 @@ editing the worker, use **Restart** on the plugin's row.
 - WSL workspaces arrive as `\\wsl.localhost\<distro>\...` paths. The worker runs `entire` inside WSL
   through `wsl.exe`, which uses the WSL Entire login, not the Windows one.
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes.
+- The command palette drops a command's result; only the Run button in Settings → Plugins shows it
+  (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.
 
 ## Rules
 

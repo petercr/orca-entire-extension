@@ -66,3 +66,13 @@ export async function checkConnection(orca, { signal } = {}) {
   }
   return lines.join('\n')
 }
+
+// Orca's notifications take a title of up to 120 characters and a body of up to 1000.
+export function connectionNotice(report) {
+  const [, ...details] = report.split('\n')
+  const ok = !details.some((line) => line.startsWith('✗'))
+  return {
+    title: ok ? 'Entire: connected' : 'Entire: connection problem',
+    body: details.join('\n').slice(0, 1000)
+  }
+}

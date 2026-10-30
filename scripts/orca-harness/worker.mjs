@@ -27,14 +27,19 @@ if (scenario === 'local-entire') {
     api: { major: 1, minor: 0 },
     host: {
       has: () => true,
-      call: async (method) => {
-        if (method !== 'workspace.readContext') throw new Error(`unexpected host call ${method}`)
-        return contexts[scenario]
+      call: async (method, params) => {
+        if (method === 'workspace.readContext') return contexts[scenario]
+        if (method === 'notifications.show') {
+          console.log(`[notification] ${params.title}`)
+          return { delivered: true }
+        }
+        throw new Error(`unexpected host call ${method}`)
       }
     },
     commands: { register: (id, handler) => (commands.set(id, handler), { dispose() {} }) },
     events: { on: () => ({ dispose() {} }) },
     log: console.log
   })
-  console.log(await commands.get('doctor')(undefined, { signal: new AbortController().signal }))
+  // The command logs its own report, which is what Orca shows under the plugin's Logs.
+  await commands.get('doctor')(undefined, { signal: new AbortController().signal })
 }
