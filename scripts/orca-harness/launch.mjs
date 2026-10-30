@@ -21,7 +21,7 @@ const orcaExe = process.env.ORCA_EXE ?? join(process.env.LOCALAPPDATA ?? '', 'Pr
 // PATH as a freshly started Orca would see it (machine + user, from the registry).
 const registryPath = execFileSync('powershell.exe', ['-NoProfile', '-Command',
   "[Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')"],
-  { encoding: 'utf8' }).trim()
+  { encoding: 'utf8', windowsHide: true }).trim()
 
 // Mirrors src/main/plugins/workers/plugin-worker-env.ts in stablyai/orca.
 const ALLOW = ['HOME', 'USERPROFILE', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TMPDIR', 'TEMP', 'TMP',
