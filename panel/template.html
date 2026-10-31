@@ -914,10 +914,15 @@
           var ids = context.terminals.map(function (terminal) {
             return terminal.id
           })
+          // A workspace keeps its terminals when it switches branch, so a snapshot from the old branch
+          // shares them too: the branch has to match as well.
           var byTerminal = list.filter(function (entry) {
-            return entry.workspace.terminals.some(function (id) {
-              return ids.indexOf(id) >= 0
-            })
+            return (
+              entry.workspace.branch === context.branch &&
+              entry.workspace.terminals.some(function (id) {
+                return ids.indexOf(id) >= 0
+              })
+            )
           })[0]
           if (byTerminal) return byTerminal
           // Many repos share a name and branch such as main/main. Fall back on them only when terminals
