@@ -34,7 +34,27 @@ test('an unreviewed change shows each gate with its short summary', () => {
       { key: 'up_to_date', status: 'passed', summary: null, people: [] }
     ]
   )
-  assert.deepEqual(merge.review, { status: 'pending', inFlight: false, reviewers: [], severity: { high: 0, medium: 0, low: 0 } })
+  assert.deepEqual(merge.review, { status: 'pending', verdict: 'not_run', inFlight: false, reviewers: [], severity: { high: 0, medium: 0, low: 0 } })
+})
+
+test('a review that found anything fails, even when the findings gate passes', async () => {
+  // Trail #1 after Code review reported two medium findings; the gate blocks only on high ones.
+  const summary = trailSummary(await fixture('trail-1-reviewed-show.json'), { findings: await fixture('trail-1-reviewed-findings.json') })
+  const gate = summary.merge.gates.find((g) => g.key === 'findings')
+  assert.deepEqual([gate.status, gate.summary], ['passed', 'None blocking'])
+  assert.equal(summary.merge.review.verdict, 'fail')
+  assert.deepEqual(summary.merge.review.severity, { high: 0, medium: 2, low: 0 })
+  assert.deepEqual(
+    summary.findings.items.map(({ severity, status }) => [severity, status]),
+    [
+      ['medium', 'open'],
+      ['medium', 'open']
+    ]
+  )
+})
+
+test('a review that found nothing passes', () => {
+  assert.equal(trailSummary(merged, { findings: mergedFindings }).merge.review.verdict, 'pass')
 })
 
 test('a reviewed, approved change shows checks, approvers and the review', () => {

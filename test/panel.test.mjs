@@ -65,6 +65,15 @@ test("Orca's installed copies are recognized, development folders are not", () =
   assert.ok(!isInstalledCopy(`C:\\Users\\me\\plugins\\${hash}`))
 })
 
+test('overlapping refreshes both land in the panel', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
+  await mkdir(join(root, 'panel'))
+  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
+  await Promise.all([updatePanel(entry('api', 'C:\\api', ['t1']), root), updatePanel(entry('web', 'C:\\web', ['t2']), root)])
+  const data = readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8'))
+  assert.deepEqual(data.workspaces.map((e) => e.workspace.name).sort(), ['api', 'web'])
+})
+
 test('the worker fills the panel from the template and keeps other workspaces', async () => {
   const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
   await mkdir(join(root, 'panel'))

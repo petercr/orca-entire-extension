@@ -738,19 +738,18 @@
 
         // One bar segment per reviewer, filled once it finished, red when it found something blocking.
         function reviewCard(review) {
-          var verdict =
-            review.status === 'passed'
-              ? { tone: 'ok', text: 'Pass' }
-              : review.status === 'failed'
-                ? { tone: 'bad', text: 'Blocked' }
-                : review.inFlight
-                  ? { tone: 'warn', text: 'Reviewing' }
-                  : { tone: '', text: 'Not run' }
+          // The worker decides the verdict as Entire's web view does (src/worker/trail.mjs).
+          var verdict = {
+            pass: { tone: 'ok', text: 'Pass' },
+            fail: { tone: 'bad', text: 'Fail' },
+            running: { tone: 'warn', text: 'Reviewing' }
+          }[review.verdict] || { tone: '', text: 'Not run' }
           var bar = el('div', 'bar')
           var reviewers = review.reviewers.length ? review.reviewers : [null]
           reviewers.forEach(function (reviewer) {
-            var kind = !reviewer ? '' : reviewer.blocking ? 'bad' : tone(reviewer.status)
-            add(bar, titled(el('span', kind), reviewer && reviewer.name + ': ' + words(reviewer.status) + (reviewer.blocking ? ', ' + reviewer.blocking + ' blocking' : '')))
+            var found = reviewer ? reviewer.blocking + reviewer.nonBlocking : 0
+            var kind = !reviewer ? '' : found ? 'bad' : tone(reviewer.status)
+            add(bar, titled(el('span', kind), reviewer && reviewer.name + ': ' + words(reviewer.status) + (found ? ', ' + plural(found, 'finding', 'findings') + (reviewer.blocking ? ' (' + reviewer.blocking + ' blocking)' : ', none blocking') : '')))
           })
           var counts = review.severity
           var found = counts.high + counts.medium + counts.low
@@ -915,17 +914,19 @@
           var ids = context.terminals.map(function (terminal) {
             return terminal.id
           })
-          return (
-            list.filter(function (entry) {
-              return entry.workspace.terminals.some(function (id) {
-                return ids.indexOf(id) >= 0
-              })
-            })[0] ||
-            list.filter(function (entry) {
-              return entry.workspace.name === context.displayName && entry.workspace.branch === context.branch
-            })[0] ||
-            null
-          )
+          var byTerminal = list.filter(function (entry) {
+            return entry.workspace.terminals.some(function (id) {
+              return ids.indexOf(id) >= 0
+            })
+          })[0]
+          if (byTerminal) return byTerminal
+          // Many repos share a name and branch such as main/main. Fall back on them only when terminals
+          // can't tell the workspaces apart and exactly one entry matches.
+          var byName = list.filter(function (entry) {
+            var contradicted = ids.length > 0 && entry.workspace.terminals.length > 0
+            return !contradicted && entry.workspace.name === context.displayName && entry.workspace.branch === context.branch
+          })
+          return byName.length === 1 ? byName[0] : null
         }
 
         // No event tells a panel that focus moved, so ask which workspace is focused every few seconds.

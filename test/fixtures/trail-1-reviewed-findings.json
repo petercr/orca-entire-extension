@@ -1,0 +1,110 @@
+{
+  "counts": {
+    "Open": 2,
+    "OpenHigh": 0,
+    "OpenMedium": 2,
+    "OpenLow": 0,
+    "Resolved": 0,
+    "Dismissed": 0,
+    "Stale": 0
+  },
+  "findings": [
+    {
+      "id": "01M69DVAEGT0082TBCSQD91F43",
+      "trailId": "01M67N6S2MWBQJ89MDSWQ7317B",
+      "repositoryId": "01M66MACPA4RPZYHJSZ7PVJ9Y8",
+      "reviewId": "01M69DVADW7AJZ3NY4T5K8YPW4",
+      "codeVersionId": "01M69AF3H11DGGJGE7C75SVYAF",
+      "actorId": "automation:aut_01M69DQMTMG6DGA618TC3AQZS0",
+      "title": null,
+      "body": "Command handlers call `refresh()` directly (`src/worker/main.mjs:39–46`), so they can overlap a queued agent/button refresh (`src/worker/main.mjs:59–80`). Both updates can read the same old panel and write the shared temporary path (`src/worker/panel.mjs:79–80`), causing a rename failure or losing a workspace snapshot. Serialize the entire read/merge/write operation across every refresh source.",
+      "severity": "medium",
+      "confidence": 0.98,
+      "status": "open",
+      "statusReason": null,
+      "staleOutcome": "current",
+      "staleCheckedAt": null,
+      "staleCheckedCodeVersionId": null,
+      "clientId": "4611e631fe74ebaef473aa2c132299e6",
+      "clientIdHash": "c42915e20a8fa4dea464eb246ed80a66abef1235ea6d7dd63f53b182c08e0eec",
+      "createdAt": "2026-10-31T16:49:22.895Z",
+      "updatedAt": "2026-10-31T16:49:22.895Z",
+      "location": {
+        "id": "01M69DVAEGZGBY0GQQDV49M4CF",
+        "reviewCommentId": "01M69DVAEGT0082TBCSQD91F43",
+        "codeVersionId": "01M69AF3H11DGGJGE7C75SVYAF",
+        "granularity": "line",
+        "filePath": "src/worker/panel.mjs",
+        "startLine": 65,
+        "startColumn": null,
+        "endLine": null,
+        "endColumn": null,
+        "selectedText": "  await writeAtomically(target, renderPanel(template, mergeEntry(readData(current), entry)))",
+        "nearbyText": null,
+        "language": null
+      },
+      "discussionId": "01M69DVAEG8TEYD625HDS243MC"
+    },
+    {
+      "id": "01M69DVAE6YMAC9E4TKHPPKKYM",
+      "trailId": "01M67N6S2MWBQJ89MDSWQ7317B",
+      "repositoryId": "01M66MACPA4RPZYHJSZ7PVJ9Y8",
+      "reviewId": "01M69DVADW7AJZ3NY4T5K8YPW4",
+      "codeVersionId": "01M69AF3H11DGGJGE7C75SVYAF",
+      "actorId": "automation:aut_01M69DQMTMG6DGA618TC3AQZS0",
+      "title": null,
+      "body": "With repository A cached as `main`/`main`, focusing an unrefreshed repository B with the same name and branch but a different terminal makes this fallback return A after terminal matching fails. The polling caller (`panel/template.html:937–939`) then displays A's trail and findings under B's workspace header. Reject the fallback when terminal IDs contradict it, and avoid choosing an arbitrary ambiguous name/branch match.",
+      "severity": "medium",
+      "confidence": 0.99,
+      "status": "open",
+      "statusReason": null,
+      "staleOutcome": "current",
+      "staleCheckedAt": null,
+      "staleCheckedCodeVersionId": null,
+      "clientId": "9dbdaeb504fd3228aa0b03183b122e05",
+      "clientIdHash": "3585bcfd01c9d841cd489c9f74f582670dbc084ca090f08ff13f51794037092f",
+      "createdAt": "2026-10-31T16:49:22.884Z",
+      "updatedAt": "2026-10-31T16:49:22.884Z",
+      "location": {
+        "id": "01M69DVAE6M629SPFJXREPS9S8",
+        "reviewCommentId": "01M69DVAE6YMAC9E4TKHPPKKYM",
+        "codeVersionId": "01M69AF3H11DGGJGE7C75SVYAF",
+        "granularity": "range",
+        "filePath": "panel/template.html",
+        "startLine": 924,
+        "startColumn": null,
+        "endLine": 926,
+        "endColumn": null,
+        "selectedText": "            list.filter(function (entry) {\n              return entry.workspace.name === context.displayName && entry.workspace.branch === context.branch\n            })[0] ||",
+        "nearbyText": null,
+        "language": null
+      },
+      "discussionId": "01M69DVAE6D9XREZPTYK8G2D62"
+    }
+  ],
+  "has_more": false,
+  "trail": {
+    "id": "01M67N6RXCHWCP254218CHDFGK",
+    "number": 1,
+    "url": "https://entire.com/et/entire-repos/orca-entire-extension/trails/1",
+    "branch": "plugin-scaffold",
+    "originalBranch": "plugin-scaffold",
+    "base": "main",
+    "title": "plugin-scaffold",
+    "status": "open",
+    "author": {
+      "id": "01KWD2M9ZS7GMVN6DCBHD9M3T4",
+      "login": "petercr"
+    },
+    "assignees": [
+      "petercr"
+    ],
+    "createdAt": "2026-10-31T00:19:29.492Z",
+    "updatedAt": "2026-10-31T16:49:22.895Z",
+    "unresolvedCount": 2,
+    "bodyDocument": {
+      "textSnapshot": "",
+      "etag": "W/\"2026-10-31T00:19:29.56633Z\""
+    }
+  }
+}

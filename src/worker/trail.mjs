@@ -85,16 +85,18 @@ function approvers(gate) {
 // The findings gate carries the review: which reviewers ran and what they found, by severity.
 function reviewSummary(gate) {
   const value = gate.value ?? {}
+  const reviewers = (value.reviewers ?? []).map((reviewer) => ({
+    name: reviewer.name ?? 'Reviewer',
+    kind: reviewer.kind ?? null,
+    status: reviewer.status ?? 'unknown',
+    blocking: reviewer.blocking_findings ?? 0,
+    nonBlocking: reviewer.non_blocking_findings ?? 0
+  }))
   return {
     status: gate.status ?? 'unknown',
+    verdict: reviewVerdict(value, reviewers),
     inFlight: Boolean(value.review_in_flight),
-    reviewers: (value.reviewers ?? []).map((reviewer) => ({
-      name: reviewer.name ?? 'Reviewer',
-      kind: reviewer.kind ?? null,
-      status: reviewer.status ?? 'unknown',
-      blocking: reviewer.blocking_findings ?? 0,
-      nonBlocking: reviewer.non_blocking_findings ?? 0
-    })),
+    reviewers,
     severity: {
       high: value.agent_findings?.high ?? 0,
       medium: value.agent_findings?.medium ?? 0,
@@ -106,6 +108,15 @@ function reviewSummary(gate) {
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 }
 
 // Open findings first, then by severity, as the web view lists them.
+// A review agent's signal is true, a fail in Entire's web view, when it reports any defect, blocking
+// or not. The findings gate is a separate question: it fails only on findings at its minimum severity.
+function reviewVerdict(value, reviewers) {
+  if (value.review_in_flight) return 'running'
+  const done = reviewers.filter((reviewer) => reviewer.status === 'completed')
+  if (!done.length) return 'not_run'
+  return done.some((reviewer) => reviewer.blocking + reviewer.nonBlocking > 0) ? 'fail' : 'pass'
+}
+
 function findingsSummary({ counts = {}, findings = [] }) {
   const ordered = [...findings].sort(
     (a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1) || (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3)

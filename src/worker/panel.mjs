@@ -55,15 +55,23 @@ export function mergeEntry(data, entry) {
   return { version: 1, workspaces: [entry, ...others].slice(0, MAX_WORKSPACES) }
 }
 
-export async function updatePanel(entry, root = PLUGIN_ROOT) {
-  if (isInstalledCopy(root)) return false
-  const target = join(root, PANEL)
-  const [template, current] = await Promise.all([
-    readFile(join(root, TEMPLATE), 'utf8'),
-    readFile(target, 'utf8').catch(() => '')
-  ])
-  await writeAtomically(target, renderPanel(template, mergeEntry(readData(current), entry)))
-  return true
+// Commands, agent events and ↻ each refresh on their own, so updates take turns: two overlapping
+// read-merge-writes would each start from the same old panel and one workspace would be lost.
+let writes = Promise.resolve()
+
+export function updatePanel(entry, root = PLUGIN_ROOT) {
+  if (isInstalledCopy(root)) return Promise.resolve(false)
+  const update = writes.then(async () => {
+    const target = join(root, PANEL)
+    const [template, current] = await Promise.all([
+      readFile(join(root, TEMPLATE), 'utf8'),
+      readFile(target, 'utf8').catch(() => '')
+    ])
+    await writeAtomically(target, renderPanel(template, mergeEntry(readData(current), entry)))
+    return true
+  })
+  writes = update.catch(() => {})
+  return update
 }
 
 // Orca refuses a plugin whose panel entry is missing, so a fresh clone needs an empty panel first.
@@ -74,8 +82,10 @@ export async function ensurePanel(root = PLUGIN_ROOT) {
   return true
 }
 
-// Orca may read the panel at any moment; a rename never shows it half written.
+// Orca may read the panel at any moment; a rename never shows it half written. The temporary name
+// carries the process id, so the harness and Orca's worker never share one.
 async function writeAtomically(target, text) {
-  await writeFile(`${target}.tmp`, text)
-  await rename(`${target}.tmp`, target)
+  const temporary = `${target}.${process.pid}.tmp`
+  await writeFile(temporary, text)
+  await rename(temporary, target)
 }
