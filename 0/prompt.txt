@@ -1,0 +1,19 @@
+<task-notification>
+<task-id>bn9032adr</task-id>
+<tool-use-id>toolu_01VsNV5kVR27oapBMouTuKow</tool-use-id>
+<output-file>C:\Users\pcruc\AppData\Local\Temp\claude\C--Users-pcruc-Web-Projects-orca-entire-extension\b9941814-e959-422d-9732-f2e5fbe2575f\tasks\bn9032adr.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve the panel preview on localhost" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+ok still fails because of this:
+
+<pasted_content id="a49e">
+### Medium finding
+
+**Location:** `panel/template.html:917-922`
+
+When a workspace changes branch while keeping its terminal, polling supplies the new context (`panel/template.html:938–940`), but this terminal-only match returns the previous branch’s snapshot. The renderer then displays its trail, review and checkpoints beneath the new branch’s header (`panel/template.html:885,904–907`). Require the stored branch to match `context.branch` before accepting a terminal match.
+</pasted_content id="a49e">
