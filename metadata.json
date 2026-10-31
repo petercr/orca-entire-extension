@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M69AEPNXY93NZQ3VQWQ2P05K",
+  "strategy": "manual-commit",
+  "branch": "plugin-scaffold",
+  "checkpoints_count": 15,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "docs/PLAN.md",
+    "panel/template.html",
+    "src/worker/entire-cli.mjs",
+    "src/worker/hosts.mjs",
+    "src/worker/main.mjs",
+    "src/worker/panel.mjs",
+    "src/worker/snapshot.mjs",
+    "test/entire-cli.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 358,
+    "cache_creation_tokens": 725581,
+    "cache_read_tokens": 72096019,
+    "output_tokens": 174031,
+    "api_call_count": 163
+  },
+  "redaction": {
+    "replacements": 48,
+    "layers": {
+      "betterleaks": 3,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 2,
+      "credentialed_uri": 0,
+      "entropy": 43,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}
