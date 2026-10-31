@@ -1,0 +1,45 @@
+<task-notification>
+<task-id>bnwc1xs9e</task-id>
+<tool-use-id>toolu_01BG4gzpp5MhfJkyTrd62kp2</tool-use-id>
+<output-file>C:\Users\pcruc\AppData\Local\Temp\claude\C--Users-pcruc-Web-Projects-orca-entire-extension\b9941814-e959-422d-9732-f2e5fbe2575f\tasks\bnwc1xs9e.output</output-file>
+<status>failed</status>
+<summary>Background command "Serve the panel preview on localhost" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+ok approve trail code review passes now
+
+---
+
+Merge it
+
+---
+
+Close it
+
+---
+
+ok next up we need to handle it refreshing on its own every 5 or 10 mins, and we need to handle when the orca user would be switching workspaces how will that  effect the plugin
+
+---
+
+it follows but you have to hit refresh in order to get current info
+
+---
+
+<task-notification>
+<task-id>b8b5a05mi</task-id>
+<tool-use-id>toolu_01AGk6eYrwdVZFCZDoADvxMu</tool-use-id>
+<output-file>C:\Users\pcruc\AppData\Local\Temp\claude\C--Users-pcruc-Web-Projects-orca-entire-extension\b9941814-e959-422d-9732-f2e5fbe2575f\tasks\b8b5a05mi.output</output-file>
+<status>failed</status>
+<summary>Background command "Start the local panel preview server" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+It updates
+
+---
+
+yes branch commit and trail
