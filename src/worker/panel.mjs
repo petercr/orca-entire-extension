@@ -1,7 +1,7 @@
 // Host API 1.0 gives a panel no channel to its worker, but Orca rereads a development folder's panel
 // file when the folder changes and remounts the panel when the HTML differs. So the worker writes
 // each snapshot into the panel file, and the panel picks the entry for the focused workspace.
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +58,35 @@ function sameWorkspace(entry, other) {
 export function mergeEntry(data, entry) {
   const others = (data?.workspaces ?? []).filter((other) => !sameWorkspace(entry, other))
   return { version: 1, workspaces: [entry, ...others].slice(0, MAX_WORKSPACES) }
+}
+
+// The entry the panel shows for a readContext result. Keep this the same as findEntry in
+// panel/template.html: the worker uses it to tell whether the panel needs a read after a switch.
+export function findShown(data, context) {
+  const list = data?.workspaces ?? []
+  const ids = context.terminals.map((terminal) => terminal.id)
+  // A workspace keeps its terminals when it switches branch, so the branch has to match as well.
+  const byTerminal = list.find((entry) => entry.workspace.branch === context.branch && entry.workspace.terminals.some((id) => ids.includes(id)))
+  if (byTerminal) return byTerminal
+  // Many repos share a name and branch such as main/main: only when terminals can't tell them apart
+  // and exactly one entry matches.
+  const byName = list.filter(
+    (entry) =>
+      !(ids.length > 0 && entry.workspace.terminals.length > 0) && entry.workspace.name === context.displayName && entry.workspace.branch === context.branch
+  )
+  return byName.length === 1 ? byName[0] : null
+}
+
+// When the panel's data for the focused workspace was read from Entire, in ms, or null if it has none.
+export function shownAt(context, root = PLUGIN_ROOT) {
+  let data
+  try {
+    data = readData(readFileSync(join(root, PANEL), 'utf8'))
+  } catch {
+    return null
+  }
+  const at = Date.parse(findShown(data, context)?.at)
+  return Number.isFinite(at) ? at : null
 }
 
 // Whether the panel already shows this entry's data: only when it was read and how long Entire took differ.

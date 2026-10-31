@@ -490,8 +490,8 @@
         var REFRESH_WAIT_MS = 12000
         var refreshing = false
         var refreshHint = null
-        // The worker reads a workspace focus moves to unless it read it in the last minute
-        // (SWITCH_FRESH_MS in src/worker/focus.mjs), then rewrites the panel. Reading a WSL workspace
+        // The worker reads a workspace focus moves to unless the entry this panel shows for it is under a
+        // minute old (SWITCH_FRESH_MS and shownAt in src/worker), then rewrites the panel. Reading a WSL workspace
         // takes up to ~20 seconds; after this long, assume the worker isn't running.
         var SWITCH_FRESH_MS = 60000
         var CHECK_WAIT_MS = 45000
@@ -950,6 +950,7 @@
           if (checkingSince !== null && Date.now() - checkingSince > CHECK_WAIT_MS) checkingSince = null
         }
 
+        // Keep this the same as findShown in src/worker/panel.mjs.
         function findEntry(context) {
           var list = (DATA && DATA.workspaces) || []
           var ids = context.terminals.map(function (terminal) {

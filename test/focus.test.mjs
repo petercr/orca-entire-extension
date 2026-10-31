@@ -25,7 +25,7 @@ test('a workspace never read is read as soon as it is focused', () => {
 
 test('the focused workspace is read again every few minutes', () => {
   const { clock, focus } = tracker()
-  focus.markRead(api)
+  assert.equal(focus.dueRead(api), 'switch')
   assert.equal(focus.dueRead(api), null)
   clock.now = AUTO_REFRESH_MS - 1
   assert.equal(focus.dueRead(api), null)
@@ -35,14 +35,34 @@ test('the focused workspace is read again every few minutes', () => {
   assert.equal(focus.dueRead(api), null)
 })
 
-test('switching back reads a workspace again only if its data is older than a minute', () => {
+test('switching reads a workspace unless the panel shows data for it younger than a minute', () => {
   const { clock, focus } = tracker()
-  focus.markRead(api)
-  focus.markRead(web)
-  assert.equal(focus.dueRead(web), null)
+  const shown = { [api]: 0, [web]: 0 }
+  const due = (key) => focus.dueRead(key, { shownAt: () => shown[key] ?? null })
+  assert.equal(due(web), null)
   clock.now = SWITCH_FRESH_MS - 1
-  assert.equal(focus.dueRead(api), null)
+  assert.equal(due(api), null)
   clock.now = SWITCH_FRESH_MS
-  assert.equal(focus.dueRead(web), 'switch')
-  assert.equal(focus.dueRead(api), 'switch')
+  assert.equal(due(web), 'switch')
+  assert.equal(due(api), 'switch')
+})
+
+test("a switch goes by the panel's entry, not the worker's last read", () => {
+  const { clock, focus } = tracker()
+  // The worker just read this workspace on another branch, whose entry replaced this branch's, or
+  // its read found nothing new and kept the panel's older entry.
+  focus.markRead(api)
+  clock.now = 1000
+  assert.equal(focus.dueRead(api, { shownAt: () => null }), 'switch')
+  assert.equal(focus.dueRead(web, { shownAt: () => -SWITCH_FRESH_MS }), 'switch')
+})
+
+test('the timer counts from the shown entry when a switch skips the read', () => {
+  const { clock, focus } = tracker()
+  clock.now = 10_000
+  assert.equal(focus.dueRead(api, { shownAt: () => 0 }), null)
+  clock.now = AUTO_REFRESH_MS - 1
+  assert.equal(focus.dueRead(api), null)
+  clock.now = AUTO_REFRESH_MS
+  assert.equal(focus.dueRead(api), 'timer')
 })

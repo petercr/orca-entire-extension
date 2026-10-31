@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { embedData, ensurePanel, isInstalledCopy, mergeEntry, readData, renderPanel, shownAlready, updatePanel } from '../src/worker/panel.mjs'
+import { embedData, ensurePanel, findShown, isInstalledCopy, mergeEntry, readData, renderPanel, shownAlready, shownAt, updatePanel } from '../src/worker/panel.mjs'
 
 const TEMPLATE = '<p>panel</p><script id="entire-data" type="application/json">null</script><script>run()</script>'
 
@@ -111,4 +111,49 @@ test('a timed refresh that finds nothing new leaves the panel alone', async () =
 test('a workspace the panel has never shown counts as changed', () => {
   assert.equal(shownAlready(null, entry('api', 'C:\\api')), false)
   assert.equal(shownAlready({ workspaces: [entry('web', 'C:\\web')] }, entry('api', 'C:\\api')), false)
+})
+
+// The panel's own findEntry, run on the same data, so the worker and the panel can't disagree.
+const template = await readFile(new URL('../panel/template.html', import.meta.url), 'utf8')
+const findEntry = (data, context) =>
+  new Function('DATA', 'context', `${/^ {8}function findEntry\(context\) \{[\s\S]*?^ {8}\}$/m.exec(template)[0]}\nreturn findEntry(context)`)(data, context)
+
+test('the worker finds the entry the panel shows', () => {
+  const branch = (e, b) => ({ ...e, workspace: { ...e.workspace, branch: b } })
+  const data = {
+    workspaces: [
+      branch(entry('api', 'C:\api', ['t1'], 'b'), 'feature'),
+      entry('web', 'C:\web', ['t2']),
+      entry('cli', null, []),
+      entry('docs', null, []),
+      entry('docs', null, [])
+    ]
+  }
+  const context = (displayName, branchName, terminals) => ({ displayName, branch: branchName, terminals: terminals.map((id) => ({ id })) })
+  const cases = [
+    context('api', 'feature', ['t1']),
+    // The same terminal on the branch it left: not that entry.
+    context('api', 'main', ['t1']),
+    context('web', 'main', ['t9', 't2']),
+    context('cli', 'main', []),
+    context('cli', 'main', ['t5']),
+    // Two entries share docs/main, so neither is shown.
+    context('docs', 'main', [])
+  ]
+  for (const c of cases) assert.equal(findShown(data, c), findEntry(data, c), JSON.stringify(c))
+  assert.deepEqual(
+    cases.map((c) => findShown(data, c)?.workspace.name ?? null),
+    ['api', null, 'web', 'cli', 'cli', null]
+  )
+})
+
+test("shownAt reads the panel's entry time, or null without one", async () => {
+  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
+  await mkdir(join(root, 'panel'))
+  const context = { displayName: 'api', branch: 'main', terminals: [{ id: 't1' }] }
+  assert.equal(shownAt(context, root), null)
+  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
+  await updatePanel(entry('api', 'C:\api', ['t1'], '2026-10-31T12:00:00Z'), { root })
+  assert.equal(shownAt(context, root), Date.parse('2026-10-31T12:00:00Z'))
+  assert.equal(shownAt({ ...context, branch: 'feature' }, root), null)
 })

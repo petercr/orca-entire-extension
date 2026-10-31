@@ -2,7 +2,7 @@
 import manifest from '../../orca-plugin.json' with { type: 'json' }
 import { connectionNotice, connectionReport } from './doctor.mjs'
 import { contextKey, createFocusTracker, FOCUS_POLL_MS, focusKey } from './focus.mjs'
-import { panelEntry, updatePanel } from './panel.mjs'
+import { panelEntry, shownAt, updatePanel } from './panel.mjs'
 import { auditLogPath, watchRefreshRequests } from './refresh-requests.mjs'
 import { collectSnapshot } from './snapshot.mjs'
 
@@ -93,7 +93,7 @@ export default function activate(orca) {
     orca.host.call('workspace.readContext', {}).then(
       (context) => {
         if (running || waiting || timer) return
-        const reason = focus.dueRead(contextKey(context))
+        const reason = focus.dueRead(contextKey(context), { shownAt: () => shownAt(context) })
         if (!reason) return
         console.log(`Checking Entire for ${context.displayName} on ${context.branch} (${reason})`)
         queueRefresh(0, { onlyIfChanged: reason === 'timer' })
