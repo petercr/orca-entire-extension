@@ -490,6 +490,13 @@
         var REFRESH_WAIT_MS = 12000
         var refreshing = false
         var refreshHint = null
+        // The worker reads a workspace focus moves to unless it read it in the last minute
+        // (SWITCH_FRESH_MS in src/worker/focus.mjs), then rewrites the panel. Reading a WSL workspace
+        // takes up to ~20 seconds; after this long, assume the worker isn't running.
+        var SWITCH_FRESH_MS = 60000
+        var CHECK_WAIT_MS = 45000
+        var focusedKey = null
+        var checkingSince = null
 
         function readData() {
           try {
@@ -585,7 +592,8 @@
         }
 
         function refreshButton() {
-          var button = titled(el('button', 'refresh' + (refreshing ? ' spinning' : '')), refreshing ? 'Refreshing…' : 'Refresh')
+          var busy = refreshing || checkingSince !== null
+          var button = titled(el('button', 'refresh' + (busy ? ' spinning' : '')), busy ? 'Refreshing…' : 'Refresh')
           button.type = 'button'
           button.setAttribute('aria-label', 'Refresh')
           button.disabled = refreshing
@@ -605,7 +613,7 @@
               setTimeout(function () {
                 refreshing = false
                 refreshHint =
-                  "Nothing refreshed: the plugin's worker isn't running. Run Entire: Refresh panel from the command palette once, and ↻ works until the worker goes idle."
+                  "Nothing refreshed: the plugin's worker isn't running. Run Entire: Refresh panel from the command palette once, and ↻ works until Orca quits."
                 rerender()
               }, REFRESH_WAIT_MS)
             },
@@ -619,7 +627,8 @@
 
         function header(context, entry) {
           var heading = add(el('div', 'heading'), el('span', 'dot ' + (entry ? health(entry) : '')), el('strong', 'clip', context.displayName))
-          if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), new Date(entry.at).toLocaleString()))
+          if (checkingSince !== null) add(heading, el('span', 'when muted', 'Checking…'))
+          else if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), 'Read from Entire ' + new Date(entry.at).toLocaleString()))
           add(heading, refreshButton())
           var where = entry && entry.workspace.where
           return add(
@@ -864,7 +873,12 @@
         }
 
         function footer() {
-          return add(el('footer'), document.createTextNode('Updates when an agent finishes. To update now, use ↻ or '), el('b', null, 'Entire: Refresh panel'), document.createTextNode('.'))
+          return add(
+            el('footer'),
+            document.createTextNode('Checks Entire when you switch here, when an agent finishes and every 5 minutes. To check now, use ↻ or '),
+            el('b', null, 'Entire: Refresh panel'),
+            document.createTextNode('.')
+          )
         }
 
         function rerender() {
@@ -875,7 +889,8 @@
         function render(context, error) {
           last = { context: context, error: error }
           var entry = context ? findEntry(context) : null
-          var signature = JSON.stringify([context, entry && entry.at, error && error.code, refreshing, refreshHint, Math.floor(Date.now() / 60000)])
+          noteSwitch(context, entry)
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, refreshing, refreshHint, checkingSince, Math.floor(Date.now() / 60000)])
           if (signature === shown) return
           shown = signature
           root.textContent = ''
@@ -885,9 +900,12 @@
           add(root, header(context, entry))
           if (refreshHint) add(root, el('div', 'notice', refreshHint))
           if (!entry) {
+            // Nothing written at all means the worker can't write here; otherwise this workspace is new to it.
             return add(
               root,
-              blank('No Entire data yet', 'The panel fills in only when Orca runs this plugin from a Development folder (Settings → Plugins → ⋯ → Development folders).'),
+              DATA
+                ? blank('Reading Entire for this workspace…', 'This takes a few seconds after you switch here. If nothing shows, use ↻.')
+                : blank('No Entire data yet', 'The panel fills in only when Orca runs this plugin from a Development folder (Settings → Plugins → ⋯ → Development folders).'),
               footer()
             )
           }
@@ -907,6 +925,29 @@
           add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : el('div', 'empty bad', (step(entry, 'checkpoints') || {}).text), false))
           var bad = failing(entry)
           add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer())
+        }
+
+        // A switch while this panel is up means the worker is about to read the new workspace, unless its
+        // data is fresh. The rewrite remounts the panel, which ends the check; the first render after a
+        // mount is no switch.
+        function noteSwitch(context, entry) {
+          var key = context
+            ? JSON.stringify([
+                context.displayName,
+                context.branch,
+                context.terminals
+                  .map(function (terminal) {
+                    return terminal.id
+                  })
+                  .sort()
+              ])
+            : null
+          if (focusedKey !== null && key !== focusedKey) {
+            var stale = !entry || !(Date.now() - Date.parse(entry.at) < SWITCH_FRESH_MS)
+            checkingSince = key && stale ? Date.now() : null
+          }
+          focusedKey = key
+          if (checkingSince !== null && Date.now() - checkingSince > CHECK_WAIT_MS) checkingSince = null
         }
 
         function findEntry(context) {

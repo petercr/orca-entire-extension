@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { embedData, ensurePanel, isInstalledCopy, mergeEntry, readData, renderPanel, updatePanel } from '../src/worker/panel.mjs'
+import { embedData, ensurePanel, isInstalledCopy, mergeEntry, readData, renderPanel, shownAlready, updatePanel } from '../src/worker/panel.mjs'
 
 const TEMPLATE = '<p>panel</p><script id="entire-data" type="application/json">null</script><script>run()</script>'
 
@@ -69,7 +69,7 @@ test('overlapping refreshes both land in the panel', async () => {
   const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
   await mkdir(join(root, 'panel'))
   await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
-  await Promise.all([updatePanel(entry('api', 'C:\\api', ['t1']), root), updatePanel(entry('web', 'C:\\web', ['t2']), root)])
+  await Promise.all([updatePanel(entry('api', 'C:\\api', ['t1']), { root }), updatePanel(entry('web', 'C:\\web', ['t2']), { root })])
   const data = readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8'))
   assert.deepEqual(data.workspaces.map((e) => e.workspace.name).sort(), ['api', 'web'])
 })
@@ -82,11 +82,33 @@ test('the worker fills the panel from the template and keeps other workspaces', 
   assert.equal(await ensurePanel(root), false)
   assert.equal(readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8')), null)
 
-  await updatePanel(entry('api', 'C:\\api', ['t1']), root)
-  await updatePanel(entry('web', 'C:\\web', ['t2']), root)
+  assert.equal(await updatePanel(entry('api', 'C:\\api', ['t1']), { root }), 'updated')
+  await updatePanel(entry('web', 'C:\\web', ['t2']), { root })
   const data = readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8'))
   assert.deepEqual(
     data.workspaces.map((e) => e.workspace.name),
     ['web', 'api']
   )
+})
+
+test('a timed refresh that finds nothing new leaves the panel alone', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
+  await mkdir(join(root, 'panel'))
+  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
+  const read = (at, ms, data = {}) => ({ ...entry('api', 'C:\\api', ['t1'], at), steps: [{ key: 'status', ok: true, ms }], report: [`${ms} ms`], data })
+  await updatePanel(read('first', 700), { root })
+
+  assert.equal(await updatePanel(read('second', 900), { root, onlyIfChanged: true }), 'unchanged')
+  const html = () => readFile(join(root, 'panel', 'entire.html'), 'utf8')
+  assert.equal(readData(await html()).workspaces[0].at, 'first')
+
+  assert.equal(await updatePanel(read('third', 800, { trail: { number: 2 } }), { root, onlyIfChanged: true }), 'updated')
+  // ↻ always writes: the panel's spinner stops only when the panel remounts.
+  assert.equal(await updatePanel(read('fourth', 800, { trail: { number: 2 } }), { root }), 'updated')
+  assert.equal(readData(await html()).workspaces[0].at, 'fourth')
+})
+
+test('a workspace the panel has never shown counts as changed', () => {
+  assert.equal(shownAlready(null, entry('api', 'C:\\api')), false)
+  assert.equal(shownAlready({ workspaces: [entry('web', 'C:\\web')] }, entry('api', 'C:\\api')), false)
 })

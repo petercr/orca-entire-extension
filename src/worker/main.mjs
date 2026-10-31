@@ -1,15 +1,13 @@
 // Orca forks this module in a Node worker on the desktop host and calls activate once.
 import manifest from '../../orca-plugin.json' with { type: 'json' }
 import { connectionNotice, connectionReport } from './doctor.mjs'
+import { contextKey, createFocusTracker, FOCUS_POLL_MS, focusKey } from './focus.mjs'
 import { panelEntry, updatePanel } from './panel.mjs'
 import { auditLogPath, watchRefreshRequests } from './refresh-requests.mjs'
 import { collectSnapshot } from './snapshot.mjs'
 
 // Entire writes its checkpoint data as an agent stops, so let it settle before reading.
 const AGENT_SETTLE_MS = 3000
-// Orca stops a worker after 5 minutes without host calls, and the panel's ↻ reaches only a running
-// worker. So once started, the worker makes a cheap host call every 2 minutes and stays up with Orca.
-const HEARTBEAT_MS = 2 * 60_000
 
 export default function activate(orca) {
   const notify = (notice, signal) =>
@@ -17,23 +15,25 @@ export default function activate(orca) {
       console.error(`Notification failed: ${error.message}`)
     })
 
-  setInterval(() => orca.host.call('workspace.readContext', {}).catch(() => {}), HEARTBEAT_MS).unref()
+  const focus = createFocusTracker()
+  let running = 0
 
   // One snapshot feeds both the report and the panel.
-  async function refresh(signal) {
-    const snapshot = await collectSnapshot(orca, { signal })
-    const report = connectionReport(orca, snapshot)
-    // Orca 1.4.245's command palette drops a command's result, so the report also goes to the plugin's Logs.
-    console.log(report)
-    let panel = 'no workspace'
-    if (snapshot.workspace) {
-      panel = await updatePanel(panelEntry(snapshot)).then(
-        (written) => (written ? 'updated' : 'installed copy'),
-        (error) => `failed: ${error.message}`
-      )
+  async function refresh(signal, { onlyIfChanged = false } = {}) {
+    running++
+    try {
+      const snapshot = await collectSnapshot(orca, { signal })
+      if (snapshot.workspace) focus.markRead(focusKey(snapshot.workspace))
+      const report = connectionReport(orca, snapshot)
+      // Orca 1.4.245's command palette drops a command's result, so the report also goes to the plugin's Logs.
+      console.log(report)
+      let panel = 'no workspace'
+      if (snapshot.workspace) panel = await updatePanel(panelEntry(snapshot), { onlyIfChanged }).catch((error) => `failed: ${error.message}`)
+      if (panel !== 'updated') console.log(`Panel not updated: ${panel}`)
+      return { report, panel }
+    } finally {
+      running--
     }
-    if (panel !== 'updated') console.log(`Panel not updated: ${panel}`)
-    return { report, panel }
   }
 
   orca.commands.register('doctor', async (_args, { signal }) => {
@@ -52,19 +52,25 @@ export default function activate(orca) {
     return `Panel ${panel}`
   })
 
-  // Background refreshes run one at a time, and a request that arrives while one waits joins it.
+  // Background refreshes run one at a time, and a request that arrives while one waits joins it. The
+  // joined refresh skips an unchanged write only if every request in it allowed that.
   let timer = null
   let queue = Promise.resolve()
   let waiting = false
-  function queueRefresh(delayMs) {
+  let quiet = true
+  function queueRefresh(delayMs, { onlyIfChanged = false } = {}) {
+    quiet &&= onlyIfChanged
     clearTimeout(timer)
     timer = setTimeout(() => {
+      timer = null
       if (waiting) return
       waiting = true
       queue = queue
         .then(() => {
           waiting = false
-          return refresh()
+          const options = { onlyIfChanged: quiet }
+          quiet = true
+          return refresh(undefined, options)
         })
         .catch((error) => console.error(`Refresh failed: ${error.message}`))
     }, delayMs)
@@ -72,10 +78,27 @@ export default function activate(orca) {
 
   // An agent finishing is when Entire has new checkpoints and sessions to show.
   orca.events.on('agent.status.changed', (event) => {
-    if ((event.mainAgent?.state ?? event.state) === 'done') queueRefresh(AGENT_SETTLE_MS)
+    if ((event.mainAgent?.state ?? event.state) === 'done') queueRefresh(AGENT_SETTLE_MS, { onlyIfChanged: true })
   })
 
   // The panel's refresh button reaches the worker through Orca's audit log, while the worker runs.
   const auditLog = auditLogPath()
   if (auditLog) watchRefreshRequests(auditLog, `plugin:${manifest.publisher}.${manifest.id}`, () => queueRefresh(0))
+
+  // Read the focused workspace when focus moves to it and every few minutes after. The poll is also a
+  // host call, which keeps Orca from stopping the worker as idle, so ↻ keeps working until Orca quits.
+  // A refresh already running or scheduled reads the focused workspace anyway. After a switch the
+  // panel shows "Checking…" until it is rewritten, so only the timed read may skip an unchanged write.
+  setInterval(() => {
+    orca.host.call('workspace.readContext', {}).then(
+      (context) => {
+        if (running || waiting || timer) return
+        const reason = focus.dueRead(contextKey(context))
+        if (!reason) return
+        console.log(`Checking Entire for ${context.displayName} on ${context.branch} (${reason})`)
+        queueRefresh(0, { onlyIfChanged: reason === 'timer' })
+      },
+      () => {}
+    )
+  }, FOCUS_POLL_MS).unref()
 }

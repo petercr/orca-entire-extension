@@ -14,9 +14,10 @@ Requires Orca 1.4.245 or later, and the Entire CLI logged in wherever your repos
    **Entire**.
 4. Focus a workspace and run **Entire: Refresh panel** from the command palette. Open the **Entire**
    panel (the layers icon) in the right sidebar: it shows the repo's Entire status, the branch's trail
-   with its merge gates, recent checkpoints and the connection check. It also updates when an agent
-   finishes. Its ↻ button refreshes once the plugin's worker is running, which it stays from the
-   first command or finished agent until Orca quits; before that, the panel says to run the command.
+   with its merge gates, recent checkpoints and the connection check. Once the plugin's worker is
+   running, which it stays from the first command or finished agent until Orca quits, the panel
+   checks Entire when you switch workspaces, when an agent finishes and every 5 minutes, and its ↻
+   button checks now. Before that, the panel says to run the command.
 5. **Entire: Check connection** runs the same check and reports it as a notification.
 
 Orca runs a development folder in place and reloads it when its files change. The panel updates only

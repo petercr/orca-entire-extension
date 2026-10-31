@@ -45,30 +45,46 @@ export function renderPanel(template, data) {
   return template.replace(DATA, (_, open, _old, close) => `${open}${embedData(data)}${close}`)
 }
 
-// A newer entry replaces any for the same workspace: same path, or a terminal they share.
-export function mergeEntry(data, entry) {
-  const same = (other) =>
+// Same path, or a terminal they share.
+function sameWorkspace(entry, other) {
+  return (
     (entry.workspace.path && other.workspace.path === entry.workspace.path) ||
     other.workspace.terminals.some((id) => entry.workspace.terminals.includes(id)) ||
     (!other.workspace.path && other.workspace.name === entry.workspace.name && other.workspace.branch === entry.workspace.branch)
-  const others = (data?.workspaces ?? []).filter((other) => !same(other))
+  )
+}
+
+// A newer entry replaces any for the same workspace.
+export function mergeEntry(data, entry) {
+  const others = (data?.workspaces ?? []).filter((other) => !sameWorkspace(entry, other))
   return { version: 1, workspaces: [entry, ...others].slice(0, MAX_WORKSPACES) }
+}
+
+// Whether the panel already shows this entry's data: only when it was read and how long Entire took differ.
+export function shownAlready(data, entry) {
+  const shown = (data?.workspaces ?? []).find((other) => sameWorkspace(entry, other))
+  const comparable = (e) => JSON.stringify({ ...e, at: undefined, report: undefined, steps: e.steps?.map(({ ms, ...step }) => step) })
+  return Boolean(shown) && comparable(shown) === comparable(entry)
 }
 
 // Commands, agent events and ↻ each refresh on their own, so updates take turns: two overlapping
 // read-merge-writes would each start from the same old panel and one workspace would be lost.
 let writes = Promise.resolve()
 
-export function updatePanel(entry, root = PLUGIN_ROOT) {
-  if (isInstalledCopy(root)) return Promise.resolve(false)
+// Each write remounts the panel, which closes what the user opened and loses their scroll, so timed
+// refreshes pass onlyIfChanged. ↻ never does: its spinner stops only when the panel remounts.
+export function updatePanel(entry, { root = PLUGIN_ROOT, onlyIfChanged = false } = {}) {
+  if (isInstalledCopy(root)) return Promise.resolve('installed copy')
   const update = writes.then(async () => {
     const target = join(root, PANEL)
     const [template, current] = await Promise.all([
       readFile(join(root, TEMPLATE), 'utf8'),
       readFile(target, 'utf8').catch(() => '')
     ])
-    await writeAtomically(target, renderPanel(template, mergeEntry(readData(current), entry)))
-    return true
+    const data = readData(current)
+    if (onlyIfChanged && shownAlready(data, entry)) return 'unchanged'
+    await writeAtomically(target, renderPanel(template, mergeEntry(data, entry)))
+    return 'updated'
   })
   writes = update.catch(() => {})
   return update

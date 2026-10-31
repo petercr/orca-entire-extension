@@ -56,7 +56,12 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   `titleChars=<length>`, and the worker watches that log. So no worker notification may share that
   title's length (a test checks), and ↻ works only while a worker is running. Orca stops a worker
   after 5 minutes without commands, events or host calls, so once started the worker calls
-  `readContext` every 2 minutes and stays up until Orca quits or the plugin is turned off.
+  `readContext` every 5 seconds and stays up until Orca quits or the plugin is turned off. The same
+  poll is how it sees a workspace switch (`src/worker/focus.mjs`).
+- Each panel write remounts the panel in a new frame (Orca blocks a frame's second navigation, and
+  panels can't call `storage.*`), so what the user opened closes. The 5-minute and agent refreshes
+  pass `onlyIfChanged`. ↻, the commands and a workspace switch always write: their spinners stop only
+  on a remount.
 - Keep the panel's script inside its wrapping function. It is a classic script, so a top-level `var`
   named like a window property (`closed`, `name`, `status`) throws or misbehaves.
 

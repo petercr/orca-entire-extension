@@ -40,7 +40,7 @@ Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/
 - Stopgap for the panel's ↻: a panel's only mutation is `notifications.show`, which Orca records in
   `plugins-data\audit.log` as `titleChars=<n>`. The button shows a notification with a title length
   no worker notice uses, and a running worker watches the log. Orca's 5-minute idle timer resets on
-  the worker's own host calls, so once started the worker calls `readContext` every 2 minutes and
+  the worker's own host calls, so once started the worker calls `readContext` every 5 seconds and
   stays up with Orca. A keyboard shortcut is no way out: in
   a development folder, keybindings tie approval to every file, so each panel write would need a new
   review.
@@ -76,8 +76,11 @@ Run from Windows Node with the worker's env allowlist:
   `entire` directly. SSH workspaces come later.
 - Shell out to the Entire CLI rather than calling its REST API. The CLI owns login, contexts and cell
   routing, so the plugin never holds a token. `entire api` covers gaps.
-- Cache per repo and branch, refresh on `agent.status.changed`, and tail `trail watch --json` while the
-  worker is alive.
+- Refresh the focused workspace on `agent.status.changed`, when focus moves to it (no event says so:
+  the worker polls `readContext` every 5 seconds) and every 5 minutes. The 5-minute and agent
+  refreshes write the panel only when Entire's data changed, since each write remounts it; after a
+  switch the panel shows "Checking…" until the worker rewrites it. Later, tail
+  `trail watch --json` while the worker is alive.
 - Panels only render what the worker hands them. Today that is the panel file the worker writes
   (`panel/entire.html`, up to 10 workspaces, matched to the focused one by terminal id, then name
   and branch). Swap to the panel → worker channel when Orca ships it. Feature-detect with
