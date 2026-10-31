@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M67MRKDCNE57F3XZ274ZD4BR",
+  "strategy": "manual-commit",
+  "branch": "plugin-scaffold",
+  "checkpoints_count": 6,
+  "files_touched": [
+    ".gitignore",
+    "CLAUDE.md",
+    "README.md",
+    "docs/PLAN.md",
+    "orca-plugin.json",
+    "src/worker/doctor.mjs",
+    "src/worker/main.mjs",
+    "test/doctor.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 202,
+    "cache_creation_tokens": 197978,
+    "cache_read_tokens": 19485677,
+    "output_tokens": 106817,
+    "api_call_count": 95
+  },
+  "redaction": {
+    "replacements": 24,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 24,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}
