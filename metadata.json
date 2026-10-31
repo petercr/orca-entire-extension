@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M69GACAKY43RAGH7XX62E6C7",
+  "strategy": "manual-commit",
+  "branch": "plugin-scaffold",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "panel/template.html",
+    "src/worker/trail.mjs",
+    "test/fixtures/trail-1-reviewed-findings.json",
+    "test/fixtures/trail-1-reviewed-show.json",
+    "test/trail.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 62,
+    "cache_creation_tokens": 26626,
+    "cache_read_tokens": 15997769,
+    "output_tokens": 19186,
+    "api_call_count": 27
+  },
+  "redaction": {
+    "replacements": 48,
+    "layers": {
+      "betterleaks": 3,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 2,
+      "credentialed_uri": 0,
+      "entropy": 43,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}
