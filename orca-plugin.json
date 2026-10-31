@@ -11,7 +11,12 @@
   "pluginApi": 1,
   "main": "src/worker/main.mjs",
   "contributes": {
-    "commands": [{ "id": "doctor", "title": "Entire: Check connection", "when": "workspace" }]
+    "commands": [
+      { "id": "doctor", "title": "Entire: Check connection", "when": "workspace" },
+      { "id": "refresh", "title": "Entire: Refresh panel", "when": "workspace" }
+    ],
+    "panels": [{ "id": "entire", "title": "Entire", "icon": "layers", "entry": "panel/entire.html" }],
+    "events": [{ "on": "agent.status.changed" }]
   },
-  "capabilities": [{ "kind": "workspace:read" }, { "kind": "notifications:show" }]
+  "capabilities": [{ "kind": "workspace:read" }, { "kind": "notifications:show" }, { "kind": "agent:read" }]
 }

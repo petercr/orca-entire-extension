@@ -1,2 +1,5 @@
 node_modules/
 dist/
+# Written by the worker from panel/template.html (scripts/create-panel.mjs makes the first one).
+panel/entire.html
+panel/entire.html.tmp

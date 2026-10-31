@@ -7,12 +7,18 @@ it works within, and the spike results are in [docs/PLAN.md](docs/PLAN.md).
 
 Requires Orca 1.4.245 or later, and the Entire CLI logged in wherever your repos live (WSL or Windows).
 
-1. In Orca, open **Settings → Plugins** and turn plugins on.
-2. From the **⋯** menu, open **Development folders…**, add this folder, then review and enable
+1. In a fresh clone, run `node scripts/create-panel.mjs`. Orca refuses the plugin until its panel file
+   exists, and the worker writes that file.
+2. In Orca, open **Settings → Plugins** and turn plugins on.
+3. From the **⋯** menu, open **Development folders…**, add this folder, then review and enable
    **Entire**.
-3. Focus a workspace and run **Entire: Check connection** from the command palette.
+4. Focus a workspace and run **Entire: Refresh panel** from the command palette. Open the **Entire**
+   panel (the layers icon) in the right sidebar: it shows the repo's Entire status, the branch's trail,
+   recent checkpoints and the connection check. It also updates when an agent finishes.
+5. **Entire: Check connection** runs the same check and reports it as a notification.
 
-Orca runs a development folder in place and reloads it when its manifest changes. After editing the
+Orca runs a development folder in place and reloads it when its files change. The panel updates only
+from a development folder: Orca refuses an installed copy whose files change. After editing the
 worker, turn the plugin off and on so the next command starts a fresh worker.
 
 ## Develop

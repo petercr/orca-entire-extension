@@ -1,0 +1,88 @@
+// Host API 1.0 gives a panel no channel to its worker, but Orca rereads a development folder's panel
+// file when the folder changes and remounts the panel when the HTML differs. So the worker writes
+// each snapshot into the panel file, and the panel picks the entry for the focused workspace.
+import { existsSync } from 'node:fs'
+import { readFile, rename, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { reportLines } from './doctor.mjs'
+
+export const PLUGIN_ROOT = fileURLToPath(new URL('../../', import.meta.url))
+export const TEMPLATE = 'panel/template.html'
+// Generated and gitignored; orca-plugin.json names it as the panel's entry.
+export const PANEL = 'panel/entire.html'
+
+const DATA = /(<script id="entire-data" type="application\/json">)([\s\S]*?)(<\/script>)/
+const MAX_WORKSPACES = 10
+// Orca refuses a panel file over 10 MiB; until we have real trail fixtures, cap what one trail adds.
+const MAX_TRAIL_CHARS = 100_000
+
+// Orca hashes an installed copy (plugins\<publisher.id>\<content hash>) and refuses it once a byte
+// changes, so the worker writes the panel only in a development folder.
+export function isInstalledCopy(root) {
+  const dir = root.replace(/[\\/]+$/, '')
+  return /^[0-9a-f]{32,64}$/i.test(basename(dir)) && basename(dirname(dirname(dir))).toLowerCase() === 'plugins'
+}
+
+export function panelEntry(snapshot) {
+  const { trail } = snapshot.data
+  const data =
+    trail && JSON.stringify(trail).length > MAX_TRAIL_CHARS
+      ? { ...snapshot.data, trail: { truncated: true, keys: Object.keys(trail) } }
+      : snapshot.data
+  return { ...snapshot, data, report: reportLines(snapshot) }
+}
+
+// Entire's text is untrusted: escaping < > & keeps it from closing the script element it sits in.
+export function embedData(data) {
+  return JSON.stringify(data).replace(/[<>&]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
+}
+
+export function readData(html) {
+  const match = DATA.exec(html)
+  try {
+    return match ? JSON.parse(match[2]) : null
+  } catch {
+    return null
+  }
+}
+
+export function renderPanel(template, data) {
+  if (!DATA.test(template)) throw new Error(`${TEMPLATE} has no entire-data script`)
+  return template.replace(DATA, (_, open, _old, close) => `${open}${embedData(data)}${close}`)
+}
+
+// A newer entry replaces any for the same workspace: same path, or a terminal they share.
+export function mergeEntry(data, entry) {
+  const same = (other) =>
+    (entry.workspace.path && other.workspace.path === entry.workspace.path) ||
+    other.workspace.terminals.some((id) => entry.workspace.terminals.includes(id)) ||
+    (!other.workspace.path && other.workspace.name === entry.workspace.name && other.workspace.branch === entry.workspace.branch)
+  const others = (data?.workspaces ?? []).filter((other) => !same(other))
+  return { version: 1, workspaces: [entry, ...others].slice(0, MAX_WORKSPACES) }
+}
+
+export async function updatePanel(entry, root = PLUGIN_ROOT) {
+  if (isInstalledCopy(root)) return false
+  const target = join(root, PANEL)
+  const [template, current] = await Promise.all([
+    readFile(join(root, TEMPLATE), 'utf8'),
+    readFile(target, 'utf8').catch(() => '')
+  ])
+  await writeAtomically(target, renderPanel(template, mergeEntry(readData(current), entry)))
+  return true
+}
+
+// Orca refuses a plugin whose panel entry is missing, so a fresh clone needs an empty panel first.
+export async function ensurePanel(root = PLUGIN_ROOT) {
+  const target = join(root, PANEL)
+  if (existsSync(target)) return false
+  await writeAtomically(target, renderPanel(await readFile(join(root, TEMPLATE), 'utf8'), null))
+  return true
+}
+
+// Orca may read the panel at any moment; a rename never shows it half written.
+async function writeAtomically(target, text) {
+  await writeFile(`${target}.tmp`, text)
+  await rename(`${target}.tmp`, target)
+}

@@ -9,6 +9,9 @@ results, the architecture, the phases and what we have asked the Orca team for.
 - `orca-plugin.json`: the manifest (format 2, host API 1). After changing it, validate it against
   `docs/schemas/plugins/orca-plugin.v2.schema.json` in github.com/stablyai/orca.
 - `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands.
+- `panel/template.html`: the right-sidebar panel. The worker writes it, with Entire's data, to
+  `panel/entire.html` (gitignored). In a fresh clone, run `node scripts/create-panel.mjs` first: Orca
+  refuses a plugin whose panel file is missing.
 - `test/`: unit tests.
 - `scripts/orca-harness/`: runs the worker inside `Orca.exe` the way Orca does, with a fake host API.
 
@@ -41,6 +44,12 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes.
 - The command palette drops a command's result; only the Run button in Settings → Plugins shows it
   (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.
+- A panel has no channel to its worker. Orca rereads a development folder's panel file when the folder
+  changes, so the worker writes its data into `panel/entire.html`. Orca hashes installed copies and
+  refuses changed ones, so `updatePanel` never writes there, and the panel fills in only from a
+  development folder.
+- Keep the panel's script inside its wrapping function. It is a classic script, so a top-level `var`
+  named like a window property (`closed`, `name`, `status`) throws or misbehaves.
 
 ## Rules
 

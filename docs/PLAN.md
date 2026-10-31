@@ -3,7 +3,8 @@
 Bring Entire (trails, findings, approvals, checkpoints) into Orca's UI as an Orca plugin, the way
 Orca already surfaces GitHub pull requests and checks.
 
-Status: phases 0 and 0.5 done. Next: phase 1 spikes.
+Status: phases 0 and 0.5 done, and a stopgap Entire panel works from a development folder. Next:
+phase 1 spikes.
 
 ## Environment
 
@@ -28,8 +29,14 @@ Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/
 - Events (at most 3): `workspace.created`, `workspace.removed`, `agent.status.changed`.
 - The command palette ignores a command's return value. The Run button in Settings → Plugins shows its
   first 200 characters in a toast. Worker stdout and stderr go to the plugin's Logs (last 200 lines).
-- Panels are sealed: Orca injects CSP `connect-src 'none'`, blocks links and `window.open`, and gives a
-  panel no channel to its own worker. A panel cannot show Entire data yet.
+- Panels are sealed: Orca injects CSP `connect-src 'none'` (scripts and styles inline only, images
+  as data URLs), blocks links and `window.open`, and gives a panel no channel to its own worker. A
+  panel can call only `workspace.readContext` and `notifications.show`, and loads one HTML file.
+- Stopgap: Orca rereads a development folder's panel file whenever the folder changes and remounts
+  the panel when the HTML differs. Writing a file there neither restarts the worker nor asks for
+  approval again (only shortcuts and VM recipes tie approval to file bytes). So the worker writes its
+  data into the panel file. Installed copies are hash-checked and refused once a byte changes, so
+  this works only from a development folder.
 - Reserved but not shipped: `taskSources`, `statusBarItems`, `sidebarCards`, `connections`, `settings`,
   `hooks`, `skills`, `mcpServers`.
 - The installed build has no `orca plugin ...` CLI (it is on Orca's `main`). Load the plugin through
@@ -64,8 +71,10 @@ Run from Windows Node with the worker's env allowlist:
   routing, so the plugin never holds a token. `entire api` covers gaps.
 - Cache per repo and branch, refresh on `agent.status.changed`, and tail `trail watch --json` while the
   worker is alive.
-- Panels only render what worker commands return. Feature-detect with `orca.host.has(...)` so one build
-  runs on shipped and newer Orca.
+- Panels only render what the worker hands them. Today that is the panel file the worker writes
+  (`panel/entire.html`, up to 10 workspaces, matched to the focused one by terminal id, then name
+  and branch). Swap to the panel → worker channel when Orca ships it. Feature-detect with
+  `orca.host.has(...)` so one build runs on shipped and newer Orca.
 - Entire text (intent, findings, comments) is untrusted: render it as text and never execute it.
 
 ## GitHub feature → Entire equivalent
@@ -90,7 +99,9 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
       the 5-minute reaper, the plugin consent flow, latency budget.
 - [ ] 2. v0.1 on shipped Orca: commands (show trail, findings, approve, merge, create, refresh) and
       notifications when an agent finishes and on trail events.
-- [ ] 3. Trail panel. Needs a panel → worker channel (Orca #25256).
+- [ ] 3. Trail panel. A stopgap panel (repo status, trail, recent checkpoints, connection check)
+      works from a development folder and shows a trail's plain fields until phase 1 records a real
+      one. A live, installable panel needs a panel → worker channel (Orca #25256).
 - [ ] 4. Trails tab on the Tasks page and a settings form (Orca #26282).
 - [ ] 5. Deeper: status bar item, forge provider for `entire://` remotes, Entire agent hooks and skills,
       checkpoints, `entire why`, `entire review`.

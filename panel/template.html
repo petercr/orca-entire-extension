@@ -1,0 +1,519 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      /* Orca injects its colors as --orca-* custom properties and sets light or dark on <html>. */
+      :root {
+        --fg: var(--orca-foreground, #e4e4e7);
+        --muted: var(--orca-muted-foreground, #a1a1aa);
+        --border: var(--orca-border, rgba(127, 127, 127, 0.25));
+        --hover: var(--orca-accent, rgba(127, 127, 127, 0.12));
+        --card: var(--orca-card, rgba(127, 127, 127, 0.06));
+        --radius: var(--orca-radius, 6px);
+        --ok: #2ea043;
+        --warn: #d29922;
+        --bad: var(--orca-destructive, #e5484d);
+        --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 10px 6px 12px;
+        font: 12px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: var(--fg);
+        background: var(--orca-background, transparent);
+        -webkit-font-smoothing: antialiased;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .mono {
+        font-family: var(--mono);
+        font-size: 11px;
+      }
+      .clip {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dot {
+        flex: none;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .ok {
+        --tone: var(--ok);
+      }
+      .warn {
+        --tone: var(--warn);
+      }
+      .bad {
+        --tone: var(--bad);
+      }
+      .dot.ok,
+      .dot.warn,
+      .dot.bad {
+        background: var(--tone);
+      }
+
+      header {
+        padding: 0 6px 10px;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .heading strong {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .when {
+        flex: none;
+        font-size: 11px;
+      }
+      .sub {
+        margin-top: 1px;
+        padding-left: 14px;
+        font-size: 11px;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 0 6px 10px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 7px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 18px;
+        color: var(--muted);
+      }
+      .chip.ok,
+      .chip.warn,
+      .chip.bad {
+        color: var(--tone);
+        border-color: color-mix(in srgb, var(--tone) 45%, transparent);
+      }
+      .notice {
+        margin: 0 6px 10px;
+        padding: 6px 9px;
+        border-left: 2px solid var(--tone, var(--muted));
+        border-radius: 0 var(--radius) var(--radius) 0;
+        background: var(--card);
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      details {
+        border-top: 1px solid var(--border);
+        padding: 2px 0;
+      }
+      summary {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      summary:hover {
+        background: var(--hover);
+        color: var(--fg);
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      summary::before {
+        content: '';
+        flex: none;
+        width: 5px;
+        height: 5px;
+        margin: 0 3px 0 2px;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: rotate(-45deg);
+        transition: transform 0.12s;
+      }
+      details[open] > summary::before {
+        transform: rotate(45deg);
+      }
+      summary .label {
+        flex: 1;
+      }
+      summary .count {
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      summary .count.ok,
+      summary .count.bad {
+        color: var(--tone);
+      }
+      .body {
+        padding-bottom: 6px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 4px 6px 4px 22px;
+        border-radius: var(--radius);
+      }
+      .row:hover {
+        background: var(--hover);
+      }
+      .stack {
+        flex: 1;
+        min-width: 0;
+      }
+      .meta {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .end {
+        flex: none;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .mark {
+        flex: none;
+        width: 10px;
+        text-align: center;
+        font-size: 11px;
+        color: var(--tone, var(--muted));
+      }
+      .empty {
+        padding: 2px 6px 4px 22px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      .empty.bad {
+        color: var(--bad);
+      }
+      dl {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1px 10px;
+        margin: 0;
+        padding: 2px 6px 2px 22px;
+      }
+      dt {
+        color: var(--muted);
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .blank {
+        padding: 18px 6px 14px;
+      }
+      .blank strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      footer {
+        padding: 8px 6px 0;
+        border-top: 1px solid var(--border);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      footer b {
+        font-weight: 600;
+        color: var(--fg);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The worker writes each snapshot here (src/worker/panel.mjs). Do not edit panel/entire.html. -->
+    <script id="entire-data" type="application/json">null</script>
+    <script>
+      // A function scope keeps these names off window: as globals, `closed` or `status` would clash.
+      ;(function () {
+        'use strict'
+        // Everything below comes from Entire and Orca and is untrusted: it only ever goes into textContent.
+        var DATA = readData()
+        var root = document.getElementById('root')
+        // Sections the user opened or closed. Orca remounts the panel on each update, which resets it.
+        var opened = {}
+        var shown = null
+
+        function readData() {
+          try {
+            return JSON.parse(document.getElementById('entire-data').textContent)
+          } catch (_) {
+            return null
+          }
+        }
+
+        function el(tag, className, text) {
+          var node = document.createElement(tag)
+          if (className) node.className = className
+          if (text !== undefined && text !== null) node.textContent = String(text)
+          return node
+        }
+
+        function add(parent) {
+          for (var i = 1; i < arguments.length; i++) if (arguments[i]) parent.appendChild(arguments[i])
+          return parent
+        }
+
+        function titled(node, title) {
+          if (title) node.title = String(title)
+          return node
+        }
+
+        function ago(iso) {
+          var seconds = (Date.now() - Date.parse(iso)) / 1000
+          if (!isFinite(seconds)) return ''
+          if (seconds < 60) return 'just now'
+          if (seconds < 3600) return Math.floor(seconds / 60) + ' min ago'
+          if (seconds < 86400) return Math.floor(seconds / 3600) + ' h ago'
+          return Math.floor(seconds / 86400) + ' d ago'
+        }
+
+        function words(value) {
+          return String(value).replace(/_/g, ' ')
+        }
+
+        function plural(count, one, many) {
+          return count + ' ' + (count === 1 ? one : many)
+        }
+
+        function step(entry, key) {
+          return (entry.steps || []).filter(function (s) {
+            return s.key === key
+          })[0]
+        }
+
+        function failing(entry) {
+          return (
+            Boolean(entry.problem) ||
+            (entry.steps || []).some(function (s) {
+              return !s.ok && !s.optional
+            })
+          )
+        }
+
+        function health(entry) {
+          if (failing(entry)) return 'bad'
+          var status = entry.data.status
+          return status && !status.enabled ? 'warn' : 'ok'
+        }
+
+        function section(id, label, count, body, openByDefault) {
+          var details = el('details')
+          details.open = Object.prototype.hasOwnProperty.call(opened, id) ? opened[id] : openByDefault
+          details.addEventListener('toggle', function () {
+            opened[id] = details.open
+          })
+          var summary = add(el('summary'), el('span', 'label', label), typeof count === 'string' ? el('span', 'count', count) : count)
+          return add(details, summary, add(el('div', 'body'), body))
+        }
+
+        function row(mark, main, meta, end) {
+          return add(el('div', 'row'), mark, add(el('div', 'stack'), main, meta), end)
+        }
+
+        function header(context, entry) {
+          var heading = add(el('div', 'heading'), el('span', 'dot ' + (entry ? health(entry) : '')), el('strong', 'clip', context.displayName))
+          if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), new Date(entry.at).toLocaleString()))
+          var where = entry && entry.workspace.where
+          return add(
+            el('header'),
+            heading,
+            context.branch !== context.displayName ? el('div', 'sub mono muted clip', context.branch) : null,
+            where ? titled(el('div', 'sub muted clip', where), where) : null
+          )
+        }
+
+        function chips(status) {
+          var list = el('div', 'chips')
+          add(list, el('span', 'chip ' + (status.enabled ? 'ok' : 'warn'), status.enabled ? 'Enabled' : 'Not enabled'))
+          ;(status.agents || []).forEach(function (agent) {
+            add(list, el('span', 'chip', agent))
+          })
+          if (status.unpushed_checkpoints)
+            add(list, titled(el('span', 'chip', status.unpushed_checkpoints + ' unpushed'), status.checkpoint_push_policy && words(status.checkpoint_push_policy) + ' push to ' + (status.checkpoint_sync_remote || 'origin')))
+          return list
+        }
+
+        function notices(entry) {
+          var status = entry.data.status || {}
+          var hooks = status.codex_hooks && status.codex_hooks.state
+          var list = []
+          if (entry.problem) list.push(el('div', 'notice bad', entry.problem))
+          if (status.checkpoint_sync_error) list.push(el('div', 'notice bad', 'Checkpoint sync: ' + status.checkpoint_sync_error))
+          if (hooks && hooks !== 'ok') list.push(el('div', 'notice warn', 'Codex hooks are ' + words(hooks) + '.'))
+          return list
+        }
+
+        function sessions(status) {
+          var body = el('div')
+          ;(status.active_sessions || []).forEach(function (session) {
+            add(
+              body,
+              row(
+                el('span', 'dot ' + (session.status === 'active' ? 'ok' : '')),
+                el('div', 'clip', session.agent || 'Agent'),
+                el('div', 'meta clip', [session.branch, session.status].filter(Boolean).join(' · ')),
+                titled(el('span', 'end clip', session.model), session.model)
+              )
+            )
+          })
+          return body
+        }
+
+        // Until phase 1 records a real trail, show the trail's plain fields as they come.
+        function trail(entry) {
+          var value = entry.data.trail
+          if (!value) {
+            var s = step(entry, 'trail')
+            var missing = !s || /no discoverable|no trail/i.test(s.text)
+            return titled(el('div', missing ? 'empty' : 'empty bad', missing ? 'No trail for this branch.' : s.text), s && s.text)
+          }
+          if (value.truncated) return el('div', 'empty', 'Too large to show. Fields: ' + value.keys.join(', '))
+          var list = el('dl')
+          Object.keys(value)
+            .filter(function (key) {
+              return Array.isArray(value[key]) || (value[key] !== null && typeof value[key] !== 'object')
+            })
+            .slice(0, 16)
+            .forEach(function (key) {
+              var field = value[key]
+              add(list, el('dt', null, words(key)), el('dd', null, Array.isArray(field) ? plural(field.length, 'item', 'items') : field))
+            })
+          return list
+        }
+
+        function checkpoints(list) {
+          if (!list.length) return el('div', 'empty', 'No checkpoints on this branch yet.')
+          var body = el('div')
+          list.forEach(function (checkpoint) {
+            var id = String(checkpoint.checkpoint_id || '')
+            var meta = add(el('div', 'meta clip'), document.createTextNode([checkpoint.agent, ago(checkpoint.date)].filter(Boolean).join(' · ') + ' · '), el('span', 'mono', id.slice(0, 8)))
+            add(body, titled(row(null, el('div', 'clip', checkpoint.message || '(no message)'), meta), (checkpoint.message || '') + '\n' + id))
+          })
+          return body
+        }
+
+        function connection(entry) {
+          var body = el('div')
+          var workspace = entry.workspace
+          if (workspace.where) add(body, row(el('span', 'mark ok', '✓'), el('div', 'clip', 'Workspace'), el('div', 'meta clip', 'found via ' + workspace.via)))
+          ;(entry.steps || []).forEach(function (s) {
+            var tone = s.ok ? 'ok' : s.optional ? '' : 'bad'
+            var mark = el('span', 'mark ' + tone, s.ok ? '✓' : s.optional ? '–' : '✕')
+            add(body, titled(row(mark, el('div', 'clip', s.label), el('div', 'meta clip', s.text), s.ok ? el('span', 'end', s.ms + ' ms') : null), s.text))
+          })
+          return body
+        }
+
+        function blank(title, text) {
+          return add(el('div', 'blank'), el('strong', null, title), el('div', 'muted', text))
+        }
+
+        function footer() {
+          return add(el('footer'), document.createTextNode('Updates when an agent finishes, or run '), el('b', null, 'Entire: Refresh panel'), document.createTextNode('.'))
+        }
+
+        function render(context, error) {
+          var entry = context ? findEntry(context) : null
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, Math.floor(Date.now() / 60000)])
+          if (signature === shown) return
+          shown = signature
+          root.textContent = ''
+
+          if (error) return add(root, blank("Can't read the workspace", error.code + ': ' + error.message), footer())
+          if (!context) return add(root, blank('No workspace focused', 'Focus a workspace to see its Entire data.'), footer())
+          add(root, header(context, entry))
+          if (!entry) {
+            return add(
+              root,
+              blank('No Entire data yet', 'The panel fills in only when Orca runs this plugin from a Development folder (Settings → Plugins → ⋯ → Development folders).'),
+              footer()
+            )
+          }
+          var status = entry.data.status
+          if (status) add(root, chips(status))
+          notices(entry).forEach(function (notice) {
+            add(root, notice)
+          })
+          if (!entry.steps.length) return add(root, footer())
+
+          var active = (status && status.active_sessions) || []
+          if (active.length) add(root, section('sessions', 'Sessions', String(active.length), sessions(status), true))
+          else if (!status) add(root, el('div', 'empty bad', (step(entry, 'status') || {}).text))
+          add(root, section('trail', 'Trail', '', trail(entry), true))
+          var list = entry.data.checkpoints
+          add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : el('div', 'empty bad', (step(entry, 'checkpoints') || {}).text), false))
+          var bad = failing(entry)
+          add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer())
+        }
+
+        function findEntry(context) {
+          var list = (DATA && DATA.workspaces) || []
+          var ids = context.terminals.map(function (terminal) {
+            return terminal.id
+          })
+          return (
+            list.filter(function (entry) {
+              return entry.workspace.terminals.some(function (id) {
+                return ids.indexOf(id) >= 0
+              })
+            })[0] ||
+            list.filter(function (entry) {
+              return entry.workspace.name === context.displayName && entry.workspace.branch === context.branch
+            })[0] ||
+            null
+          )
+        }
+
+        // No event tells a panel that focus moved, so ask which workspace is focused every few seconds.
+        function tick() {
+          if (!orca.host.has('workspace.readContext')) {
+            render(null, { code: 'unknown_method', message: 'this Orca has no workspace.readContext' })
+            return
+          }
+          orca.host.call('workspace.readContext', {}).then(
+            function (context) {
+              render(context, null)
+            },
+            function (error) {
+              render(null, error)
+            }
+          )
+        }
+
+        tick()
+        setInterval(tick, 2000)
+      })()
+    </script>
+  </body>
+</html>
