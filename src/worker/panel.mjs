@@ -14,8 +14,6 @@ export const PANEL = 'panel/entire.html'
 
 const DATA = /(<script id="entire-data" type="application\/json">)([\s\S]*?)(<\/script>)/
 const MAX_WORKSPACES = 10
-// Orca refuses a panel file over 10 MiB; until we have real trail fixtures, cap what one trail adds.
-const MAX_TRAIL_CHARS = 100_000
 
 // Orca hashes an installed copy (plugins\<publisher.id>\<content hash>) and refuses it once a byte
 // changes, so the worker writes the panel only in a development folder.
@@ -25,12 +23,7 @@ export function isInstalledCopy(root) {
 }
 
 export function panelEntry(snapshot) {
-  const { trail } = snapshot.data
-  const data =
-    trail && JSON.stringify(trail).length > MAX_TRAIL_CHARS
-      ? { ...snapshot.data, trail: { truncated: true, keys: Object.keys(trail) } }
-      : snapshot.data
-  return { ...snapshot, data, report: reportLines(snapshot) }
+  return { ...snapshot, report: reportLines(snapshot) }
 }
 
 // Entire's text is untrusted: escaping < > & keeps it from closing the script element it sits in.

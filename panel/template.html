@@ -79,6 +79,40 @@
         flex: none;
         font-size: 11px;
       }
+      .refresh {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        margin: -3px -4px -3px 0;
+        padding: 0;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .refresh:hover:not(:disabled) {
+        background: var(--hover);
+        color: var(--fg);
+      }
+      .refresh:disabled {
+        cursor: default;
+      }
+      .refresh svg {
+        width: 14px;
+        height: 14px;
+      }
+      .refresh.spinning svg {
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
       .sub {
         margin-top: 1px;
         padding-left: 14px;
@@ -167,8 +201,190 @@
         text-transform: none;
       }
       summary .count.ok,
+      summary .count.warn,
       summary .count.bad {
         color: var(--tone);
+      }
+
+      /* Trail cards, after Entire's web view. */
+      .card {
+        margin: 4px 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 2px);
+        background: var(--card);
+        overflow: hidden;
+      }
+      .pad {
+        padding: 8px 10px;
+      }
+      .spread {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+      }
+      .spread.gap {
+        margin: 6px 0;
+      }
+      .tags {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        min-width: 0;
+      }
+      .tag {
+        min-width: 0;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 18px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tag.fixed {
+        flex: none;
+      }
+      .diff {
+        flex: none;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .plus {
+        color: var(--ok);
+      }
+      .minus {
+        color: var(--bad);
+      }
+      .card-title {
+        font-weight: 600;
+      }
+      .card .name {
+        font-weight: 600;
+      }
+      .card .about {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .verdict {
+        font-weight: 600;
+        color: var(--tone, var(--muted));
+      }
+      .bar {
+        display: flex;
+        gap: 3px;
+        margin: 6px 0 4px;
+      }
+      .bar span {
+        flex: 1;
+        height: 10px;
+        border: 1px dashed var(--border);
+        border-radius: 3px;
+      }
+      .bar span.ok,
+      .bar span.warn,
+      .bar span.bad {
+        border-color: transparent;
+        background: var(--tone);
+      }
+      .gate {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 6px 10px;
+        border-top: 1px solid var(--border);
+      }
+      .gate svg {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        color: var(--tone, var(--muted));
+      }
+      .gate .label {
+        flex: none;
+      }
+      .gate .meta {
+        flex: 1;
+      }
+      .people {
+        display: flex;
+        gap: 2px;
+        flex: none;
+      }
+      .who {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--hover);
+        font-size: 10px;
+        font-weight: 600;
+      }
+      details.finding {
+        padding: 0;
+      }
+      .finding > summary {
+        display: block;
+        padding: 8px 10px;
+        border-radius: 0;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--fg);
+      }
+      .finding > summary::before {
+        content: none;
+      }
+      .finding-title {
+        margin: 4px 0 2px;
+      }
+      .finding-body {
+        padding: 0 10px 10px;
+        font-size: 11px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .finding-body .reason {
+        margin-top: 8px;
+        padding: 6px 8px;
+        border-left: 2px solid var(--tone, var(--border));
+        border-radius: 0 4px 4px 0;
+        background: var(--hover);
+        color: var(--muted);
+      }
+      .finding-body .reason b {
+        color: var(--tone, var(--fg));
+      }
+      .pill {
+        flex: none;
+        padding: 0 6px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 10px;
+        line-height: 16px;
+        color: var(--tone, var(--muted));
+      }
+      .heading-row {
+        padding: 6px 6px 2px 22px;
+      }
+      .sev {
+        flex: none;
+        padding: 0 5px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--tone, var(--muted));
       }
       .body {
         padding-bottom: 6px;
@@ -205,6 +421,24 @@
         font-size: 11px;
         color: var(--tone, var(--muted));
       }
+      .clamp {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .trail {
+        padding: 2px 6px 6px 22px;
+      }
+      .trail .name {
+        font-weight: 500;
+      }
+      .trail .about {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--muted);
+      }
       .empty {
         padding: 2px 6px 4px 22px;
         color: var(--muted);
@@ -212,20 +446,6 @@
       }
       .empty.bad {
         color: var(--bad);
-      }
-      dl {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 1px 10px;
-        margin: 0;
-        padding: 2px 6px 2px 22px;
-      }
-      dt {
-        color: var(--muted);
-      }
-      dd {
-        margin: 0;
-        overflow-wrap: anywhere;
       }
 
       .blank {
@@ -263,6 +483,13 @@
         // Sections the user opened or closed. Orca remounts the panel on each update, which resets it.
         var opened = {}
         var shown = null
+        var last = { context: null, error: null }
+        // src/worker/refresh-requests.mjs listens for exactly this title.
+        var REFRESH_TITLE = 'Entire: refreshing the panel'
+        // A refresh normally remounts the panel within a few seconds; after this long, assume it won't.
+        var REFRESH_WAIT_MS = 12000
+        var refreshing = false
+        var refreshHint = null
 
         function readData() {
           try {
@@ -341,9 +568,59 @@
           return add(el('div', 'row'), mark, add(el('div', 'stack'), main, meta), end)
         }
 
+        function icon(paths) {
+          var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          svg.setAttribute('viewBox', '0 0 24 24')
+          svg.setAttribute('fill', 'none')
+          svg.setAttribute('stroke', 'currentColor')
+          svg.setAttribute('stroke-width', '2')
+          svg.setAttribute('stroke-linecap', 'round')
+          svg.setAttribute('stroke-linejoin', 'round')
+          paths.forEach(function (d) {
+            var path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+            path.setAttribute('d', d)
+            svg.appendChild(path)
+          })
+          return svg
+        }
+
+        function refreshButton() {
+          var button = titled(el('button', 'refresh' + (refreshing ? ' spinning' : '')), refreshing ? 'Refreshing…' : 'Refresh')
+          button.type = 'button'
+          button.setAttribute('aria-label', 'Refresh')
+          button.disabled = refreshing
+          button.appendChild(icon(['M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8', 'M21 3v5h-5']))
+          button.addEventListener('click', requestRefresh)
+          return button
+        }
+
+        // The worker hears this notification through Orca's audit log, refreshes, and Orca remounts the
+        // panel with the new data, which ends this document. Still here later means the worker isn't running.
+        function requestRefresh() {
+          refreshing = true
+          refreshHint = null
+          rerender()
+          orca.host.call('notifications.show', { title: REFRESH_TITLE }).then(
+            function () {
+              setTimeout(function () {
+                refreshing = false
+                refreshHint =
+                  "Nothing refreshed: the plugin's worker isn't running. Run Entire: Refresh panel from the command palette once, and ↻ works until the worker goes idle."
+                rerender()
+              }, REFRESH_WAIT_MS)
+            },
+            function (error) {
+              refreshing = false
+              refreshHint = "Couldn't ask for a refresh: " + error.code + ': ' + error.message
+              rerender()
+            }
+          )
+        }
+
         function header(context, entry) {
           var heading = add(el('div', 'heading'), el('span', 'dot ' + (entry ? health(entry) : '')), el('strong', 'clip', context.displayName))
           if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), new Date(entry.at).toLocaleString()))
+          add(heading, refreshButton())
           var where = entry && entry.workspace.where
           return add(
             el('header'),
@@ -390,7 +667,155 @@
           return body
         }
 
-        // Until phase 1 records a real trail, show the trail's plain fields as they come.
+        function sentence(value) {
+          var text = words(value)
+          return text.charAt(0).toUpperCase() + text.slice(1)
+        }
+
+        // Gate and check outcomes as a tone: passed, failed, or still to come.
+        function tone(status, blocking) {
+          if (/^(passed|success|completed|approved)$/.test(status)) return 'ok'
+          if (/^(failed|failure|error|changes_requested)$/.test(status)) return blocking === false ? 'warn' : 'bad'
+          if (/^(running|in_progress|queued)$/.test(status)) return 'warn'
+          return ''
+        }
+
+        // Entire's web view marks each gate with a ringed check, cross or dashed ring.
+        function statusIcon(kind) {
+          var ring = 'M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20'
+          if (kind === 'ok') return icon([ring, 'm8 12 3 3 5-6'])
+          if (kind === 'bad' || kind === 'warn') return icon([ring, 'M15 9l-6 6', 'M9 9l6 6'])
+          var svg = icon([ring])
+          svg.setAttribute('stroke-dasharray', '3 3')
+          return svg
+        }
+
+        function person(login) {
+          return titled(el('span', 'who', String(login).charAt(0).toUpperCase()), login)
+        }
+
+        // Merged, Ready to merge, Blocked or Not ready, with the line under it.
+        function mergeState(value) {
+          var merge = value.merge
+          var blocking = merge
+            ? merge.gates.filter(function (gate) {
+                return gate.blocking && gate.status === 'failed'
+              }).length
+            : 0
+          if (value.changeStatus === 'merged') return { tone: 'ok', badge: 'Merged', title: 'Merged', line: 'Changes were merged into ' + (value.base || 'the base branch') + '.' }
+          if (value.status === 'closed' || value.changeStatus === 'closed') return { tone: '', badge: 'Closed', title: 'Closed', line: 'This change is closed.' }
+          if (merge && merge.mergeable) return { tone: 'ok', badge: 'Ready', title: 'Ready to merge', line: 'Every required gate passed.' }
+          if (blocking) return { tone: 'bad', badge: 'Blocked', title: 'Blocked', line: plural(blocking, 'gate needs', 'gates need') + ' attention.' }
+          return { tone: 'warn', badge: 'Open', title: 'Not ready yet', line: 'Some gates have not finished.' }
+        }
+
+        function trailBadge(value) {
+          if (!value) return ''
+          var state = mergeState(value)
+          return el('span', 'count ' + state.tone, state.badge)
+        }
+
+        function changeCard(value) {
+          var who = [value.author, ago(value.mergedAt || value.createdAt)].filter(Boolean).join(' · ')
+          var where = add(el('div', 'spread'), add(el('div', 'tags'), value.repository ? titled(el('span', 'tag', value.repository), value.repository) : null, value.change ? el('span', 'tag fixed', '#' + value.change) : null), el('span', 'meta clip', who))
+          var branches = add(el('div', 'tags'), value.branch ? titled(el('span', 'tag', value.branch), value.branch) : null, value.base ? el('span', 'muted', '→') : null, value.base ? el('span', 'tag fixed', value.base) : null)
+          var diff = value.diff
+            ? titled(add(el('span', 'diff'), el('span', 'plus', '+' + value.diff.additions), document.createTextNode(' / '), el('span', 'minus', '−' + value.diff.deletions)), plural(value.diff.files, 'file', 'files') + ' changed')
+            : null
+          var facts = [value.type && sentence(value.type), value.priority && sentence(value.priority) + ' priority', value.changes.length > 1 ? plural(value.changes.length, 'change', 'changes') : null]
+          return add(
+            el('div', 'card'),
+            add(
+              el('div', 'pad'),
+              where,
+              add(el('div', 'spread gap'), branches, diff),
+              titled(el('div', 'name clamp', value.title || 'Untitled trail'), value.title),
+              el('div', 'meta', facts.filter(Boolean).join(' · ')),
+              value.body ? titled(el('div', 'about clamp', value.body), value.body) : null
+            )
+          )
+        }
+
+        // One bar segment per reviewer, filled once it finished, red when it found something blocking.
+        function reviewCard(review) {
+          var verdict =
+            review.status === 'passed'
+              ? { tone: 'ok', text: 'Pass' }
+              : review.status === 'failed'
+                ? { tone: 'bad', text: 'Blocked' }
+                : review.inFlight
+                  ? { tone: 'warn', text: 'Reviewing' }
+                  : { tone: '', text: 'Not run' }
+          var bar = el('div', 'bar')
+          var reviewers = review.reviewers.length ? review.reviewers : [null]
+          reviewers.forEach(function (reviewer) {
+            var kind = !reviewer ? '' : reviewer.blocking ? 'bad' : tone(reviewer.status)
+            add(bar, titled(el('span', kind), reviewer && reviewer.name + ': ' + words(reviewer.status) + (reviewer.blocking ? ', ' + reviewer.blocking + ' blocking' : '')))
+          })
+          var counts = review.severity
+          var found = counts.high + counts.medium + counts.low
+          var detail = review.reviewers.length
+            ? review.reviewers
+                .map(function (reviewer) {
+                  return reviewer.name
+                })
+                .join(' · ') + (found ? ' · ' + [counts.high + ' high', counts.medium + ' medium', counts.low + ' low'].join(', ') : ' · nothing found')
+            : 'No review has run on this version yet.'
+          return add(el('div', 'card'), add(el('div', 'pad'), add(el('div', 'spread'), el('span', 'card-title', 'Code review'), el('span', 'verdict ' + verdict.tone, verdict.text)), bar, el('div', 'meta clip', detail)))
+        }
+
+        function mergeCard(value) {
+          var state = mergeState(value)
+          var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line)))
+          var merge = value.merge
+          if (!merge) return card
+          if (merge.conflicts) add(card, gateRow({ key: 'conflicts', status: 'failed', blocking: true, summary: words(merge.conflicts), people: [] }))
+          merge.gates.forEach(function (gate) {
+            add(card, gateRow(gate))
+          })
+          return card
+        }
+
+        function gateRow(gate) {
+          var kind = gate.status === 'passed' ? 'ok' : gate.status === 'failed' ? (gate.blocking ? 'bad' : 'warn') : ''
+          var people = el('span', 'people')
+          ;(gate.people || []).slice(0, 4).forEach(function (login) {
+            add(people, person(login))
+          })
+          return titled(add(el('div', 'gate ' + kind), statusIcon(kind), el('span', 'label', sentence(gate.key)), gate.summary ? el('span', 'meta clip', gate.summary) : el('span', 'clip'), people), gate.rationale)
+        }
+
+        function findingsList(findings) {
+          var counts = [findings.open + ' open', findings.resolved ? findings.resolved + ' resolved' : null, findings.dismissed ? findings.dismissed + ' dismissed' : null]
+          var body = add(el('div'), add(el('div', 'spread heading-row'), el('span', 'card-title', 'Findings'), el('span', 'meta', counts.filter(Boolean).join(' · '))))
+          if (!findings.items.length) return add(body, el('div', 'empty', 'No findings on this branch.'))
+          findings.items.forEach(function (finding) {
+            add(body, findingCard(finding))
+          })
+          return body
+        }
+
+        // Collapsed: severity, status, confidence, the defect and where. Open: the agent's full text and
+        // how the finding was resolved or why it was dismissed.
+        function findingCard(finding) {
+          var severity = finding.severity ? el('span', 'sev ' + (finding.severity === 'high' ? 'bad' : finding.severity === 'medium' ? 'warn' : ''), finding.severity) : null
+          var status = finding.status && finding.status !== 'open' ? el('span', 'pill ' + (finding.status === 'resolved' ? 'ok' : ''), sentence(finding.status)) : null
+          var stale = finding.stale ? titled(el('span', 'pill', 'Stale'), 'Found on an earlier version of the code') : null
+          var confidence = typeof finding.confidence === 'number' ? titled(el('span', 'meta', Math.round(finding.confidence * 100) + '%'), 'Confidence') : null
+          var range = finding.line ? ':' + finding.line + (finding.endLine && finding.endLine !== finding.line ? '–' + finding.endLine : '') : ''
+          var where = finding.file ? finding.file + range : null
+          var summary = add(
+            el('summary'),
+            add(el('div', 'spread'), add(el('div', 'tags'), severity, status, stale), confidence),
+            el('div', 'finding-title clamp', finding.title || 'Finding'),
+            where ? titled(el('div', 'meta mono clip', where), where) : null
+          )
+          var text = finding.body && finding.body !== finding.title ? el('div', 'text', finding.body) : null
+          var reason = finding.reason ? add(el('div', 'reason ' + (finding.status === 'resolved' ? 'ok' : '')), el('b', null, sentence(finding.status || 'note') + ': '), document.createTextNode(finding.reason)) : null
+          return add(el('details', 'finding card'), summary, text || reason ? add(el('div', 'finding-body'), text, reason) : null)
+        }
+
+        // The worker summarizes `entire trail show` and `entire trail finding list` (src/worker/trail.mjs).
         function trail(entry) {
           var value = entry.data.trail
           if (!value) {
@@ -398,18 +823,18 @@
             var missing = !s || /no discoverable|no trail/i.test(s.text)
             return titled(el('div', missing ? 'empty' : 'empty bad', missing ? 'No trail for this branch.' : s.text), s && s.text)
           }
-          if (value.truncated) return el('div', 'empty', 'Too large to show. Fields: ' + value.keys.join(', '))
-          var list = el('dl')
-          Object.keys(value)
-            .filter(function (key) {
-              return Array.isArray(value[key]) || (value[key] !== null && typeof value[key] !== 'object')
+          var body = add(el('div'), changeCard(value))
+          if (value.merge && value.merge.review) add(body, reviewCard(value.merge.review))
+          add(body, mergeCard(value))
+          if (value.findings) add(body, findingsList(value.findings))
+          value.changes
+            .filter(function (change) {
+              return !change.current
             })
-            .slice(0, 16)
-            .forEach(function (key) {
-              var field = value[key]
-              add(list, el('dt', null, words(key)), el('dd', null, Array.isArray(field) ? plural(field.length, 'item', 'items') : field))
+            .forEach(function (change) {
+              add(body, row(el('span', 'mark', '⎇'), el('div', 'clip', change.repository + ' · ' + change.branch), el('div', 'meta clip', words(change.status || ''))))
             })
-          return list
+          return body
         }
 
         function checkpoints(list) {
@@ -440,12 +865,18 @@
         }
 
         function footer() {
-          return add(el('footer'), document.createTextNode('Updates when an agent finishes, or run '), el('b', null, 'Entire: Refresh panel'), document.createTextNode('.'))
+          return add(el('footer'), document.createTextNode('Updates when an agent finishes. To update now, use ↻ or '), el('b', null, 'Entire: Refresh panel'), document.createTextNode('.'))
+        }
+
+        function rerender() {
+          shown = null
+          render(last.context, last.error)
         }
 
         function render(context, error) {
+          last = { context: context, error: error }
           var entry = context ? findEntry(context) : null
-          var signature = JSON.stringify([context, entry && entry.at, error && error.code, Math.floor(Date.now() / 60000)])
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, refreshing, refreshHint, Math.floor(Date.now() / 60000)])
           if (signature === shown) return
           shown = signature
           root.textContent = ''
@@ -453,6 +884,7 @@
           if (error) return add(root, blank("Can't read the workspace", error.code + ': ' + error.message), footer())
           if (!context) return add(root, blank('No workspace focused', 'Focus a workspace to see its Entire data.'), footer())
           add(root, header(context, entry))
+          if (refreshHint) add(root, el('div', 'notice', refreshHint))
           if (!entry) {
             return add(
               root,
@@ -470,7 +902,8 @@
           var active = (status && status.active_sessions) || []
           if (active.length) add(root, section('sessions', 'Sessions', String(active.length), sessions(status), true))
           else if (!status) add(root, el('div', 'empty bad', (step(entry, 'status') || {}).text))
-          add(root, section('trail', 'Trail', '', trail(entry), true))
+          var value = entry.data.trail
+          add(root, section('trail', value && value.number ? 'Trail #' + value.number : 'Trail', trailBadge(value), trail(entry), true))
           var list = entry.data.checkpoints
           add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : el('div', 'empty bad', (step(entry, 'checkpoints') || {}).text), false))
           var bad = failing(entry)

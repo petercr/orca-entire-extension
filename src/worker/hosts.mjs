@@ -19,3 +19,8 @@ export function entireCommand(host, args) {
   }
   return { command: 'entire', args, cwd: host.path }
 }
+
+export function gitCommand(host, args) {
+  if (host.kind === 'wsl') return { command: 'wsl.exe', args: ['-d', host.distro, '--cd', host.path, '-e', 'git', ...args] }
+  return { command: 'git', args, cwd: host.path }
+}

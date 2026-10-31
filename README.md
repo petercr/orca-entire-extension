@@ -13,8 +13,10 @@ Requires Orca 1.4.245 or later, and the Entire CLI logged in wherever your repos
 3. From the **⋯** menu, open **Development folders…**, add this folder, then review and enable
    **Entire**.
 4. Focus a workspace and run **Entire: Refresh panel** from the command palette. Open the **Entire**
-   panel (the layers icon) in the right sidebar: it shows the repo's Entire status, the branch's trail,
-   recent checkpoints and the connection check. It also updates when an agent finishes.
+   panel (the layers icon) in the right sidebar: it shows the repo's Entire status, the branch's trail
+   with its merge gates, recent checkpoints and the connection check. It also updates when an agent
+   finishes. Its ↻ button refreshes once the plugin's worker is running, which it stays from the
+   first command or finished agent until Orca quits; before that, the panel says to run the command.
 5. **Entire: Check connection** runs the same check and reports it as a notification.
 
 Orca runs a development folder in place and reloads it when its files change. The panel updates only

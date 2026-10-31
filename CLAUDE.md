@@ -39,6 +39,9 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   derives it for `orca.exe`), and Orca needs a restart to see PATH changes.
 - `workspace.readContext` has no path. The worker resolves it from a terminal handle with
   `orca terminal show`; without a terminal, branch and name match many workspaces.
+- Run `entire` only through `runEntire`, which sets `ENTIRE_TELEMETRY_OPTOUT=1`. Otherwise each call
+  starts a detached `entire __send_analytics` child with no console, and on Windows every git it runs
+  opens a Windows Terminal window.
 - WSL workspaces arrive as `\\wsl.localhost\<distro>\...` paths. The worker runs `entire` inside WSL
   through `wsl.exe`, which uses the WSL Entire login, not the Windows one.
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes.
@@ -48,6 +51,12 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   changes, so the worker writes its data into `panel/entire.html`. Orca hashes installed copies and
   refuses changed ones, so `updatePanel` never writes there, and the panel fills in only from a
   development folder.
+- The panel's ↻ can't call the worker either. It shows a notification titled
+  `REFRESH_REQUEST_TITLE`, Orca logs it to `%APPDATA%\orca\plugins-data\audit.log` as
+  `titleChars=<length>`, and the worker watches that log. So no worker notification may share that
+  title's length (a test checks), and ↻ works only while a worker is running. Orca stops a worker
+  after 5 minutes without commands, events or host calls, so once started the worker calls
+  `readContext` every 2 minutes and stays up until Orca quits or the plugin is turned off.
 - Keep the panel's script inside its wrapping function. It is a classic script, so a top-level `var`
   named like a window property (`closed`, `name`, `status`) throws or misbehaves.
 

@@ -1,0 +1,144 @@
+{
+  "project": {
+    "id": "01M66M9SHMQQVRSYZGBS3PPTN8",
+    "name": "entire-repos",
+    "provider": "entire",
+    "jurisdiction": "us",
+    "reference": {
+      "forge": "et",
+      "project": "entire-repos"
+    },
+    "capabilities": {
+      "canManageTrails": true
+    }
+  },
+  "id": "01M67N6RXCHWCP254218CHDFGK",
+  "projectId": "01M66M9SHMQQVRSYZGBS3PPTN8",
+  "number": 1,
+  "url": "https://entire.com/et/entire-repos/-/trails/1",
+  "title": "Entire for Orca: plugin scaffold and panel",
+  "body": "Orca plugin that brings Entire trails, findings and checkpoints into Orca: the worker, the connection check, and a right-sidebar panel. Plan: docs/PLAN.md.",
+  "status": "open",
+  "metadata": {},
+  "type": "feature",
+  "priority": "none",
+  "assignees": [],
+  "assigneeAccountIds": [],
+  "repoIds": [
+    "01M66MACPA4RPZYHJSZ7PVJ9Y8"
+  ],
+  "authorAccountId": "01KWD2M9ZS7GMVN6DCBHD9M3T4",
+  "createdAt": "2026-10-31T00:19:29.325Z",
+  "updatedAt": "0001-01-01T00:00:00Z",
+  "closedAt": null,
+  "isPossiblyPartial": true,
+  "changes": [
+    {
+      "id": "01M67N6S2MWBQJ89MDSWQ7317B",
+      "repositoryId": "01M66MACPA4RPZYHJSZ7PVJ9Y8",
+      "repository": "orca-entire-extension",
+      "branch": "plugin-scaffold",
+      "number": 1,
+      "title": "plugin-scaffold",
+      "status": "open",
+      "hasCodeChanges": true,
+      "createdAt": "2026-10-31T00:19:29.492Z",
+      "updatedAt": "2026-10-31T00:19:29.557Z",
+      "url": "https://entire.com/et/entire-repos/-/trails/1/changes/orca-entire-extension/1",
+      "current": true,
+      "mergeability": {
+        "head_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+        "mergeable": false,
+        "conflict_status": "clean",
+        "checks": {
+          "availability": "not_applicable",
+          "runs": []
+        },
+        "gates": [
+          {
+            "id": "",
+            "gate_definition_id": "01M66ZBBWV39N99Q40STATP18W",
+            "gate_key": "approvals",
+            "gate_type": "approvals",
+            "blocking": true,
+            "status": "failed",
+            "state": "evaluated",
+            "outcome": "failed",
+            "rationale": "No reviewers have approved this trail",
+            "head_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+            "evaluated_at_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [],
+            "runner_ids": [],
+            "value": {
+              "approved": 0,
+              "changes_requested": false,
+              "config": {
+                "version": 1,
+                "min_reviewers": 1,
+                "allow_self_approval": true,
+                "dismiss_stale_approvals_on_push": false
+              },
+              "required": 1,
+              "self_excluded": false,
+              "stale_dismissed": 0,
+              "total": 0
+            },
+            "created_at": "2026-10-31T00:19:38.965151506Z",
+            "completed_at": "2026-10-31T00:19:38.965151506Z"
+          },
+          {
+            "id": "",
+            "gate_definition_id": "01M66ZBBX0SS8QA4MWEGPW0TVA",
+            "gate_key": "findings",
+            "gate_type": "findings",
+            "blocking": true,
+            "status": "pending",
+            "state": "not_run",
+            "outcome": null,
+            "rationale": "Gate has not been evaluated yet",
+            "head_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+            "evaluated_at_sha": null,
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [],
+            "runner_ids": [],
+            "value": null,
+            "created_at": "2026-10-30T17:57:31.169329Z",
+            "completed_at": null
+          },
+          {
+            "id": "01M67N6S6GAK3VY54PCZH1RAGS",
+            "gate_definition_id": "01M66ZBBX3764MMKDZSPQ28R84",
+            "gate_key": "up_to_date",
+            "gate_type": "up_to_date",
+            "blocking": true,
+            "status": "passed",
+            "state": "evaluated",
+            "outcome": "passed",
+            "rationale": "Up to date",
+            "head_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+            "evaluated_at_sha": "9e82da8130c4d0a81931255782d450465f290c26",
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [],
+            "runner_ids": [],
+            "value": {
+              "config": {
+                "version": 1,
+                "allow_behind_if_mergeable": false
+              },
+              "behind_by": 0,
+              "compare_status": "ahead",
+              "comparison_status": "available",
+              "resolved_head_sha": "9e82da8130c4d0a81931255782d450465f290c26"
+            },
+            "created_at": "2026-10-31T00:19:29.622044Z",
+            "completed_at": "2026-10-31T00:19:29.622044Z"
+          }
+        ]
+      }
+    }
+  ]
+}

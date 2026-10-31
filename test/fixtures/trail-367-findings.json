@@ -1,0 +1,43 @@
+{
+  "counts": {
+    "Open": 0,
+    "OpenHigh": 0,
+    "OpenMedium": 0,
+    "OpenLow": 0,
+    "Resolved": 0,
+    "Dismissed": 0,
+    "Stale": 0
+  },
+  "findings": [],
+  "has_more": false,
+  "trail": {
+    "id": "01M693WFHJ1WMDABPBARWV7W2J",
+    "number": 367,
+    "url": "https://entire.com/gh/petercr/endo.chat_backend/trails/153",
+    "branch": "fix/issue-610-scan-chromium-anonymizer",
+    "originalBranch": "fix/issue-610-scan-chromium-anonymizer",
+    "base": "main",
+    "title": "security(#610): NVD chromium re-rate addenda + anonymizer 0.4.4 (py3-pip-wheel r2)",
+    "status": "merged",
+    "author": {
+      "id": "01KWD2M9ZS7GMVN6DCBHD9M3T4",
+      "login": "petercr"
+    },
+    "assignees": [
+      "petercr"
+    ],
+    "reviewers": [
+      {
+        "login": "petercr",
+        "status": "approved"
+      }
+    ],
+    "createdAt": "2026-10-31T13:55:15.101Z",
+    "updatedAt": "2026-10-31T14:48:45.939Z",
+    "mergedAt": "2026-10-31T14:48:44Z",
+    "bodyDocument": {
+      "textSnapshot": "",
+      "etag": "W/\"2026-10-31T13:55:15.155985Z\""
+    }
+  }
+}

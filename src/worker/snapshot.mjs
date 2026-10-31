@@ -1,5 +1,7 @@
 import { failureLine, runEntire } from './entire-cli.mjs'
+import { diffStat, safeRef } from './git.mjs'
 import { workspaceHost } from './hosts.mjs'
+import { trailSummary } from './trail.mjs'
 import { resolveFocusedWorkspace } from './workspace.mjs'
 
 const VERSION = { key: 'version', label: 'Entire CLI', args: ['--version'], parse: (out) => out.trim().split('\n')[0] }
@@ -21,7 +23,7 @@ const STEPS = [
     args: ['trail', 'show', '--json'],
     optional: true,
     parse: JSON.parse,
-    summarize: (trail) => `found (${Object.keys(trail).join(', ')})`
+    summarize: (trail) => `#${trail.number} ${trail.title} · ${trail.status}`
   },
   {
     key: 'checkpoints',
@@ -31,6 +33,15 @@ const STEPS = [
     summarize: (list) => `${list.length} on this branch`
   }
 ]
+
+// Fetched alongside the steps for the panel only: the connection check doesn't report them. Every status,
+// so resolved findings and how they were fixed show too, as in Entire's web view.
+const FINDINGS = {
+  key: 'findings',
+  label: 'Findings',
+  args: ['trail', 'finding', 'list', '--status', 'any', '--freshness', 'any', '--json'],
+  parse: JSON.parse
+}
 
 // The panel keeps the newest checkpoints only.
 const CHECKPOINT_LIMIT = 20
@@ -64,9 +75,14 @@ export async function collectSnapshot(orca, { signal } = {}) {
 
   const version = await runStep(host, VERSION, signal)
   if (!version.ok) return { ...snapshot, workspace, steps: [version.step] }
-  const results = await Promise.all(STEPS.map((step) => runStep(host, step, signal)))
+  const [findings, ...results] = await Promise.all([FINDINGS, ...STEPS].map((step) => runStep(host, step, signal)))
   const data = Object.fromEntries(results.filter((result) => result.ok).map((result) => [result.step.key, result.value]))
   if (data.checkpoints) data.checkpoints = data.checkpoints.slice(0, CHECKPOINT_LIMIT)
+  if (data.trail) {
+    const found = findings.ok ? findings.value : null
+    const base = safeRef(found?.trail?.base)
+    data.trail = trailSummary(data.trail, { findings: found, diff: base ? await diffStat(host, base, { signal }) : null })
+  }
   return { ...snapshot, workspace, steps: [version.step, ...results.map((result) => result.step)], data }
 }
 

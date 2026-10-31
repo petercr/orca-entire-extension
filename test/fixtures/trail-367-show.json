@@ -1,0 +1,252 @@
+{
+  "project": {
+    "id": "01KWZPEESGDSSCX1G4N66RZHMN",
+    "name": "petercr",
+    "provider": "github",
+    "jurisdiction": "us",
+    "reference": {
+      "forge": "gh",
+      "project": "petercr"
+    },
+    "capabilities": {
+      "canManageTrails": true
+    }
+  },
+  "id": "01M693WFHJ1WMDABPBARWV7W2J",
+  "projectId": "01KWZPEESGDSSCX1G4N66RZHMN",
+  "number": 367,
+  "url": "https://entire.com/gh/petercr/-/trails/367",
+  "title": "security(#610): NVD chromium re-rate addenda + anonymizer 0.4.4 (py3-pip-wheel r2)",
+  "body": "",
+  "status": "open",
+  "metadata": {},
+  "type": "task",
+  "priority": "none",
+  "assignees": [
+    "ulid:01KWD2M9ZS7GMVN6DCBHD9M3T4"
+  ],
+  "assigneeAccountIds": [
+    "01KWD2M9ZS7GMVN6DCBHD9M3T4"
+  ],
+  "repoIds": [
+    "01M12G9T88DJETQ7C3NVB940D2"
+  ],
+  "authorAccountId": "01KWD2M9ZS7GMVN6DCBHD9M3T4",
+  "createdAt": "2026-10-31T13:55:15.101Z",
+  "updatedAt": "0001-01-01T00:00:00Z",
+  "closedAt": null,
+  "isPossiblyPartial": true,
+  "changes": [
+    {
+      "id": "01M693WFGZ916R80YJRDB7DN49",
+      "repositoryId": "01M12G9T88DJETQ7C3NVB940D2",
+      "repository": "endo.chat_backend",
+      "branch": "fix/issue-610-scan-chromium-anonymizer",
+      "number": 153,
+      "title": "security(#610): NVD chromium re-rate addenda + anonymizer 0.4.4 (py3-pip-wheel r2)",
+      "status": "merged",
+      "hasCodeChanges": false,
+      "createdAt": "2026-10-31T13:55:15.101Z",
+      "updatedAt": "2026-10-31T14:48:45.939Z",
+      "url": "https://entire.com/gh/petercr/-/trails/367/changes/endo.chat_backend/153",
+      "current": true,
+      "mergeability": {
+        "head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+        "mergeable": false,
+        "conflict_status": "unknown",
+        "checks": {
+          "availability": "available",
+          "runs": [
+            {
+              "name": "Socket Security: Pull Request Alerts",
+              "status": "completed",
+              "conclusion": "success",
+              "details_url": "https://checks.example/run",
+              "started_at": "2026-10-31T13:55:26Z",
+              "completed_at": "2026-10-31T13:55:44Z",
+              "app_name": "Socket Security"
+            },
+            {
+              "name": "Socket Security: Project Report",
+              "status": "completed",
+              "conclusion": "success",
+              "details_url": "https://checks.example/run",
+              "started_at": "2026-10-31T13:55:18Z",
+              "completed_at": "2026-10-31T13:55:21Z",
+              "app_name": "Socket Security"
+            }
+          ]
+        },
+        "gates": [
+          {
+            "id": "01M696Y8MV3NV8CABCWVWFJEBG",
+            "gate_definition_id": "01M2609HSBY8VHR5PBSCDQBQR7",
+            "gate_key": "approvals",
+            "gate_type": "approvals",
+            "blocking": true,
+            "status": "passed",
+            "state": "evaluated",
+            "outcome": "passed",
+            "rationale": "1 approval(s) recorded",
+            "head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "evaluated_at_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [
+              {
+                "login": "petercr",
+                "state": "approved",
+                "reviewed_head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+                "reason": null
+              }
+            ],
+            "runner_ids": [],
+            "value": {
+              "approved": 1,
+              "changes_requested": false,
+              "config": {
+                "version": 1,
+                "min_reviewers": 1,
+                "allow_self_approval": true,
+                "dismiss_stale_approvals_on_push": false
+              },
+              "required": 1,
+              "self_excluded": false,
+              "stale_dismissed": 0,
+              "total": 1
+            },
+            "created_at": "2026-10-31T14:48:39.325944Z",
+            "completed_at": "2026-10-31T14:48:39.325944Z"
+          },
+          {
+            "id": "01M693XDQSSKCTQYX3Q0ZQYTSH",
+            "gate_definition_id": "01M2609HSHT46GXEN8TC59C9QB",
+            "gate_key": "checks",
+            "gate_type": "checks",
+            "blocking": true,
+            "status": "passed",
+            "state": "evaluated",
+            "outcome": "passed",
+            "rationale": "CI checks have passed",
+            "head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "evaluated_at_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [],
+            "runner_ids": [],
+            "value": {
+              "state": "success",
+              "checks": [
+                {
+                  "name": "Socket Security: Pull Request Alerts",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "details_url": "https://checks.example/run"
+                },
+                {
+                  "name": "Socket Security: Project Report",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "details_url": "https://checks.example/run"
+                }
+              ],
+              "config": {
+                "version": 1,
+                "required_checks": [],
+                "require_all_success": true
+              },
+              "total_count": 2
+            },
+            "created_at": "2026-10-31T13:55:46.044215Z",
+            "completed_at": "2026-10-31T13:55:46.044215Z"
+          },
+          {
+            "id": "01M693ZFDADVAN0837Q5T9BYWG",
+            "gate_definition_id": "01M2609HSE514XVRM6VA6A7JKM",
+            "gate_key": "findings",
+            "gate_type": "findings",
+            "blocking": true,
+            "status": "passed",
+            "state": "evaluated",
+            "outcome": "passed",
+            "rationale": "Agent review found no blocking issues",
+            "head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "evaluated_at_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "stale_reason": null,
+            "finding_count": 0,
+            "reviewers": [],
+            "runner_ids": [
+              "trail-review"
+            ],
+            "value": {
+              "config": {
+                "version": 1,
+                "agent_findings_min_severity": "high"
+              },
+              "reviewers": [
+                {
+                  "id": "01M5XDJNM3XYT8A3D6VER08ZPF",
+                  "kind": "agent",
+                  "name": "Code review",
+                  "status": "completed",
+                  "blocking_findings": 0,
+                  "non_blocking_findings": 0
+                },
+                {
+                  "id": "trail-review",
+                  "kind": "runner",
+                  "name": "Trail Review",
+                  "status": "completed",
+                  "blocking_findings": 0,
+                  "non_blocking_findings": 0
+                }
+              ],
+              "reviewed_head": true,
+              "agent_findings": {
+                "low": 0,
+                "high": 0,
+                "medium": 0,
+                "unspecified": 0
+              },
+              "review_in_flight": false,
+              "reviewer_configured": true,
+              "review_grace_expired": false,
+              "agent_blocking_findings": 0
+            },
+            "created_at": "2026-10-31T13:56:53.292459Z",
+            "completed_at": "2026-10-31T13:56:53.292459Z"
+          },
+          {
+            "id": "01M693WPR4M3TG1CCQ9ZKD13KM",
+            "gate_definition_id": "01M2609HSMMZKHFW43TMPMRHD0",
+            "gate_key": "up_to_date",
+            "gate_type": "up_to_date",
+            "blocking": true,
+            "status": "passed",
+            "state": "evaluated",
+            "outcome": "passed",
+            "rationale": "Up to date",
+            "head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "evaluated_at_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2",
+            "stale_reason": null,
+            "finding_count": null,
+            "reviewers": [],
+            "runner_ids": [],
+            "value": {
+              "config": {
+                "version": 1,
+                "allow_behind_if_mergeable": false
+              },
+              "behind_by": 0,
+              "compare_status": "ahead",
+              "comparison_status": "available",
+              "resolved_head_sha": "c54ddcd8f87be381a3afc55ac9e86c2e1fb601d2"
+            },
+            "created_at": "2026-10-31T13:55:22.504217Z",
+            "completed_at": "2026-10-31T13:55:22.504217Z"
+          }
+        ]
+      }
+    }
+  ]
+}

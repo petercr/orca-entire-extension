@@ -37,6 +37,13 @@ Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/
   approval again (only shortcuts and VM recipes tie approval to file bytes). So the worker writes its
   data into the panel file. Installed copies are hash-checked and refused once a byte changes, so
   this works only from a development folder.
+- Stopgap for the panel's ↻: a panel's only mutation is `notifications.show`, which Orca records in
+  `plugins-data\audit.log` as `titleChars=<n>`. The button shows a notification with a title length
+  no worker notice uses, and a running worker watches the log. Orca's 5-minute idle timer resets on
+  the worker's own host calls, so once started the worker calls `readContext` every 2 minutes and
+  stays up with Orca. A keyboard shortcut is no way out: in
+  a development folder, keybindings tie approval to every file, so each panel write would need a new
+  review.
 - Reserved but not shipped: `taskSources`, `statusBarItems`, `sidebarCards`, `connections`, `settings`,
   `hooks`, `skills`, `mcpServers`.
 - The installed build has no `orca plugin ...` CLI (it is on Orca's `main`). Load the plugin through
@@ -99,9 +106,14 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
       the 5-minute reaper, the plugin consent flow, latency budget.
 - [ ] 2. v0.1 on shipped Orca: commands (show trail, findings, approve, merge, create, refresh) and
       notifications when an agent finishes and on trail events.
-- [ ] 3. Trail panel. A stopgap panel (repo status, trail, recent checkpoints, connection check)
-      works from a development folder and shows a trail's plain fields until phase 1 records a real
-      one. A live, installable panel needs a panel → worker channel (Orca #25256).
+- [ ] 3. Trail panel. A stopgap panel (repo status, the trail and its merge gates, recent
+      checkpoints, connection check, a ↻ that works while the worker runs) works from a development
+      folder. Trail #1 links `plugin-scaffold`; its JSON is `test/fixtures/trail-show.json`, and a
+      reviewed, merged change is `test/fixtures/trail-367-*.json`. The Trail section follows Entire's
+      web view (change, code review, merge gates, findings) from `trail show` and `trail finding list`,
+      plus `git diff --shortstat` for the line counts. Not shown: the web view's Confidence, Risk,
+      Drift and Security scores, which no CLI command or API type exposes. A live, installable panel
+      needs a panel → worker channel (Orca #25256).
 - [ ] 4. Trails tab on the Tasks page and a settings form (Orca #26282).
 - [ ] 5. Deeper: status bar item, forge provider for `entire://` remotes, Entire agent hooks and skills,
       checkpoints, `entire why`, `entire review`.
