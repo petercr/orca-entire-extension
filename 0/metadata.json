@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M6BQT2XDX99MD7S9E3RBZ692",
+  "session_id": "02834c29-5b2e-4bbd-a3ab-a30fa2769f56",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-01T14:21:58.6776546Z",
+  "branch": "auto-refresh",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "skills-lock.json"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-sonnet-5-5",
+  "turn_id": "d119e6f93426",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 29184,
+    "cache_read_tokens": 354013,
+    "output_tokens": 2531,
+    "api_call_count": 9
+  },
+  "redaction": {
+    "replacements": 2,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 2,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 1
+  }
+}
