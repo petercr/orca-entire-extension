@@ -1,0 +1,16 @@
+yes lets open a trail for this
+
+---
+
+check entire trail code review it failed, herees response: 
+### Medium finding
+
+**Location:** `src/worker/snapshot.mjs:81`
+
+The resolver preserves the Git branch name (`src/worker/workspace.mjs:50`), but `safeRef` rejects valid names containing characters such as `+` (`src/worker/git.mjs:11`). A server workspace on `fix/issue+620` therefore exits here without reading its trail or findings. Validate the branch using Git's ref rules rather than the restrictive filter used for diff references.
+
+### Medium finding
+
+**Location:** `src/worker/workspace.mjs:42`
+
+If two paired servers have a repository named `leadgen` and the focused server's listing fails, the catch at `src/worker/workspace.mjs:34` removes that server and this check accepts the other one. Matching uses only the repository name (`src/worker/workspace.mjs:84`), so `src/worker/snapshot.mjs:119` then loads the wrong workspace's trail and findings. Return a lookup problem when failed server queries prevent establishing a unique match.
