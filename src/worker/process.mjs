@@ -35,12 +35,14 @@ export function run(command, args, { cwd, env = process.env, signal, timeoutMs =
 }
 
 // The worker env is an allowlist without APPDATA or LOCALAPPDATA, which Windows CLIs (Orca's included)
-// use to find their data. Derive them from USERPROFILE when they are missing.
+// use to find their data. Derive them from USERPROFILE when they are missing. Windows OpenSSH also needs
+// ProgramData (its global config lives there): without it, ssh exits 255 before printing anything.
 export function desktopEnv(env = process.env, platform = process.platform) {
   if (platform !== 'win32' || !env.USERPROFILE) return env
   return {
     APPDATA: win32.join(env.USERPROFILE, 'AppData', 'Roaming'),
     LOCALAPPDATA: win32.join(env.USERPROFILE, 'AppData', 'Local'),
+    ProgramData: win32.join(`${env.SYSTEMDRIVE ?? env.SystemDrive ?? 'C:'}\\`, 'ProgramData'),
     ...env
   }
 }

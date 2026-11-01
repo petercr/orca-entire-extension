@@ -47,8 +47,13 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   through `wsl.exe`, which uses the WSL Entire login, not the Windows one.
 - A workspace on a paired Orca server (the VPS) isn't in the desktop runtime: `readContext` gives its repo's
   name, an empty branch and no terminals, and the Orca CLI reaches it only with `--environment <name>`. The
-  worker reads its trail and findings with the Windows `entire --repo <origin URL> --branch <branch>`;
-  status and checkpoints need the checkout, which it can't reach. Try it with the harness's `repo <name>`.
+  worker reads its trail and findings with the Windows `entire --repo <origin URL> --branch <branch>`.
+  Status, checkpoints and the diff need the checkout, so it runs them over SSH (`ssh -o BatchMode=yes`,
+  every remote word shell-quoted) to the server's SSH target: `orca environment show` names its id, and
+  the address comes from `sshTargets` in Orca's `profiles\<active>\profile-state.db`, read read-only
+  with Orca's `node:sqlite`. The target's key must be in the Windows ssh-agent (`ssh-add`), and the env
+  needs ProgramData (`desktopEnv` derives it) or Windows ssh exits 255 silently. Try it with the
+  harness's `repo <name>`.
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes.
 - The command palette drops a command's result; only the Run button in Settings → Plugins shows it
   (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.

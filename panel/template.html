@@ -872,11 +872,11 @@
         }
 
         // Why a step's data is missing: an error, or (optional) out of the worker's reach, such as a
-        // paired server's checkout.
+        // paired server's checkout without SSH.
         function unread(s) {
           if (!s) return el('div', 'empty bad')
           if (!s.optional) return el('div', 'empty bad', s.text)
-          return el('div', 'empty', sentence(s.text) + ". The plugin can't run Entire there yet.")
+          return el('div', 'empty', sentence(s.text) + '.')
         }
 
         function blank(title, text) {

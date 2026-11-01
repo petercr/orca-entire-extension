@@ -11,12 +11,40 @@ export function workspaceHost(workspacePath) {
   return { kind: 'wsl', distro: match[1], path: (match[2] ?? '\\').replaceAll('\\', '/') }
 }
 
-// A workspace on a paired Orca server (a VPS). The worker can't run anything there: Orca's SSH key
-// needs a passphrase and the CLI has no way to run a command without opening a terminal tab. Trails and
-// findings live on Entire's server, though, so this desktop's Entire reads them by repository and
-// branch. Status, checkpoints and the diff need the checkout and stay out of reach.
-export function serverHost({ environment, path, repoUrl, branch }) {
-  return { kind: 'server', environment, path, repo: safeRepoUrl(repoUrl), branch: branchName(branch) }
+// A workspace on a paired Orca server (a VPS). Trails and findings live on Entire's server, so this
+// desktop's Entire reads them by repository and branch. Status, checkpoints and the diff need the
+// checkout: `remote` reaches it over SSH when Orca's SSH target for the server is known (its key must be
+// in ssh-agent, since nothing can type a passphrase), and `remoteProblem` says why not otherwise.
+export function serverHost({ environment, path, repoUrl, branch, target = null, remoteProblem = null }) {
+  return {
+    kind: 'server',
+    environment,
+    path,
+    repo: safeRepoUrl(repoUrl),
+    branch: branchName(branch),
+    remote: target ? { kind: 'ssh', environment, target, path } : null,
+    remoteProblem: target ? null : remoteProblem
+  }
+}
+
+// One POSIX shell word: the remote shell parses the command line ssh sends, so every part is quoted.
+export function shellQuote(word) {
+  return `'${String(word).replaceAll("'", `'\\''`)}'`
+}
+
+// A login shell puts ~/.local/bin, where Entire installs, on PATH. BatchMode fails instead of prompting.
+function sshCommand(host, argv) {
+  const { host: address, port, user } = host.target
+  const remote = ['bash', '-lc', 'cd -- "$1" && shift && exec "$@"', 'bash', host.path, ...argv].map(shellQuote).join(' ')
+  return {
+    command: 'ssh',
+    args: [
+      '-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8',
+      // Only a port Orca saved: an ~/.ssh/config alias may set its own, which `-p` would override.
+      ...(port === null ? [] : ['-p', String(port)]),
+      '--', user ? `${user}@${address}` : address, remote
+    ]
+  }
 }
 
 // A branch as Git allows it (`git check-ref-format --branch`), or null. Orca reports it and it goes to
@@ -44,11 +72,14 @@ export function entireCommand(host, args) {
   }
   // Outside any checkout, so only --repo and --branch say which repository Entire reads.
   if (host.kind === 'server') return { command: 'entire', args, cwd: tmpdir() }
+  // The opt-out has to travel with the command: the desktop env stays on this side of SSH.
+  if (host.kind === 'ssh') return sshCommand(host, ['env', 'ENTIRE_TELEMETRY_OPTOUT=1', 'entire', ...args])
   return { command: 'entire', args, cwd: host.path }
 }
 
 export function gitCommand(host, args) {
   if (host.kind === 'server') throw new Error(`git runs only on ${host.environment}`)
+  if (host.kind === 'ssh') return sshCommand(host, ['git', ...args])
   if (host.kind === 'wsl') return { command: 'wsl.exe', args: ['-d', host.distro, '--cd', host.path, '-e', 'git', ...args] }
   return { command: 'git', args, cwd: host.path }
 }

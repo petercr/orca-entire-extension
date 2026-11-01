@@ -77,7 +77,8 @@ Run from Windows Node with the worker's env allowlist:
   `wsl.exe -d <distro> --cd <path> -e bash -lc 'exec entire "$@"' entire ...`. For a local path, run
   `entire` directly. For a paired server's workspace (a VPS), run this desktop's `entire` outside any
   checkout with `--repo <origin URL> --branch <branch>`: trails and findings live on Entire's server, so
-  they read fine. Status, checkpoints and the diff need the checkout, which the worker can't reach (see below), so the panel says so.
+  they read fine. Status, checkpoints and the diff need the checkout: the worker runs them over SSH to
+  the server's Orca SSH target, with the key in the Windows ssh-agent. Without that, the panel says why.
 - Shell out to the Entire CLI rather than calling its REST API. The CLI owns login, contexts and cell
   routing, so the plugin never holds a token. `entire api` covers gaps.
 - Refresh the focused workspace on `agent.status.changed`, when focus moves to it (no event says so:
@@ -146,9 +147,10 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 - A paired server's workspace reaches `readContext` as its repo's display name, an empty branch and
   no terminals (seen 2026-11-01): the desktop runtime doesn't hold it. The worker matches the repo name
   against each paired server's `orca repo list` and `worktree list --environment`. Two worktrees of one
-  repo on a server can't be told apart, and the panel says so. Running anything on the VPS is out: Orca's
-  SSH key needs a passphrase and no ssh-agent holds it, and the Orca CLI runs commands there only in
-  visible terminal tabs.
+  repo on a server can't be told apart, and the panel says so. The Orca CLI runs commands there only in
+  visible terminal tabs, so the worker uses its own SSH (2026-11-01): it needs the key in the Windows
+  ssh-agent, and it finds the address in Orca's private profile database (`sshTargets`), whose shape
+  Orca can change without notice. Ask #7 would remove both.
 - Both sides run Entire 0.12.3-nightly. On Windows, `entire status` reports this repo's 7 Codex hooks
   as needing trust approval in Codex (`/hooks`); that only matters when using Codex here.
   `entire agent add codex` and `entire doctor` rewrite committed hook files, so run them on a branch.

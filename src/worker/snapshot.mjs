@@ -1,6 +1,7 @@
 import { failureLine, runEntire } from './entire-cli.mjs'
 import { diffStat, safeRef } from './git.mjs'
 import { serverHost, workspaceHost } from './hosts.mjs'
+import { serverSshTarget } from './ssh-targets.mjs'
 import { trailSummary } from './trail.mjs'
 import { resolveFocusedWorkspace } from './workspace.mjs'
 
@@ -8,7 +9,7 @@ const VERSION = { key: 'version', label: 'Entire CLI', args: ['--version'], pars
 
 // Each step keeps its own outcome, so one failed call (a branch without a trail, say) hides nothing else.
 // `byRepo` steps read Entire's server and also work for a paired server's workspace, given --repo and
-// --branch; the others read the checkout.
+// --branch; the others read the checkout, which for a paired server means over SSH.
 const STEPS = [
   {
     key: 'status',
@@ -73,7 +74,14 @@ export async function collectSnapshot(orca, { signal } = {}) {
 
   let host = workspaceHost(path)
   if (server) {
-    host = serverHost({ ...server, path })
+    let target = null
+    let remoteProblem = null
+    try {
+      target = await serverSshTarget(server.environment, { signal })
+    } catch (error) {
+      remoteProblem = error.message
+    }
+    host = serverHost({ ...server, path, target, remoteProblem })
     // readContext gives a server workspace's repo name and no branch; the panel shows the real branch.
     workspace.server = { environment: server.environment, branch: server.branch }
     workspace.where = `${server.environment} ${path}`
@@ -91,7 +99,8 @@ export async function collectSnapshot(orca, { signal } = {}) {
   if (data.trail) {
     const found = findings.ok ? findings.value : null
     const base = safeRef(found?.trail?.base)
-    const diff = base && host.kind !== 'server' ? await diffStat(host, base, { signal }) : null
+    const checkout = host.kind === 'server' ? host.remote : host
+    const diff = base && checkout ? await diffStat(checkout, base, { signal }) : null
     data.trail = trailSummary(data.trail, { findings: found, diff })
   }
   return { ...snapshot, workspace, steps: [version.step, ...results.map((result) => result.step)], data }
@@ -119,9 +128,10 @@ function unresolved(context, via, candidates, unreachable) {
 async function runStep(host, { key, label, args, byRepo = false, optional = false, parse, summarize = (value) => value }, signal) {
   const step = { key, label, optional, ok: false }
   if (host.kind === 'server' && key !== 'version') {
-    // On a paired server only Entire's server is in reach; say so instead of failing.
-    if (!byRepo) return { ok: false, step: { ...step, optional: true, text: `only readable on ${host.environment}` } }
-    args = [...args, '--repo', host.repo, '--branch', host.branch]
+    if (byRepo) args = [...args, '--repo', host.repo, '--branch', host.branch]
+    else if (host.remote) host = host.remote
+    // Without SSH only Entire's server is in reach; say so instead of failing.
+    else return { ok: false, step: { ...step, optional: true, text: `only readable on ${host.environment}, which the plugin can't reach over SSH (${host.remoteProblem ?? 'no SSH target'})` } }
   }
   let result
   try {
@@ -142,5 +152,10 @@ async function runStep(host, { key, label, args, byRepo = false, optional = fals
 function explainFailure(host, result) {
   const line = failureLine(result)
   if (host.kind === 'server' && /repository not found/i.test(line)) return 'repository not on Entire for this computer’s login'
+  // ssh exits 255 for its own failures, as opposed to the remote command's.
+  if (host.kind === 'ssh' && result.code === 255) {
+    const hint = /permission denied/i.test(line) ? ' Is its key in ssh-agent (ssh-add)?' : ''
+    return `SSH to ${host.environment} failed: ${line}${hint}`
+  }
   return line
 }

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tmpdir } from 'node:os'
-import { branchName, entireCommand, gitCommand, safeRepoUrl, serverHost, workspaceHost } from '../src/worker/hosts.mjs'
+import { branchName, entireCommand, gitCommand, safeRepoUrl, serverHost, shellQuote, workspaceHost } from '../src/worker/hosts.mjs'
 
 test('WSL UNC paths map to a distro and a Linux path', () => {
   assert.deepEqual(workspaceHost('\\\\wsl.localhost\\Ubuntu\\home\\peterc\\ccw'), {
@@ -59,6 +59,37 @@ test("a paired server's workspace reads Entire from here, outside any checkout",
   assert.equal(host.repo, 'git@github.com:petercr/endo.chat_backend.git')
   assert.deepEqual(entireCommand(host, ['trail', 'show']), { command: 'entire', args: ['trail', 'show'], cwd: tmpdir() })
   assert.throws(() => gitCommand(host, ['status']), /only on Endo VPS Server/)
+})
+
+test("a paired server's checkout runs Entire and git over SSH, every word quoted for the remote shell", () => {
+  const target = { host: '203.0.113.10', port: 22, user: 'ubuntu' }
+  const host = serverHost({ environment: 'VPS', path: "/home/ubuntu/it's here", repoUrl: 'git@github.com:a/b.git', branch: 'main', target })
+  assert.deepEqual(host.remote, { kind: 'ssh', environment: 'VPS', target, path: "/home/ubuntu/it's here" })
+  const { command, args } = entireCommand(host.remote, ['checkpoint', 'list', '--json'])
+  assert.equal(command, 'ssh')
+  assert.deepEqual(args.slice(0, -1), ['-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-p', '22', '--', 'ubuntu@203.0.113.10'])
+  assert.equal(
+    args.at(-1),
+    `'bash' '-lc' 'cd -- "$1" && shift && exec "$@"' 'bash' '/home/ubuntu/it'\\''s here' 'env' 'ENTIRE_TELEMETRY_OPTOUT=1' 'entire' 'checkpoint' 'list' '--json'`
+  )
+  assert.match(gitCommand(host.remote, ['diff', '--shortstat', 'origin/main...HEAD']).args.at(-1), / 'git' 'diff' '--shortstat' 'origin\/main\.\.\.HEAD'$/)
+})
+
+test("without a saved port ssh gets no -p, so an ~/.ssh/config alias's Port applies", () => {
+  const host = serverHost({ environment: 'VPS', path: '/r', repoUrl: 'git@github.com:a/b.git', branch: 'main', target: { host: 'vps', port: null, user: null } })
+  assert.deepEqual(gitCommand(host.remote, ['status']).args.slice(0, -1), ['-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '--', 'vps'])
+})
+
+test('without an SSH target the server host says why', () => {
+  const host = serverHost({ environment: 'VPS', path: '/r', repoUrl: 'git@github.com:a/b.git', branch: 'main', remoteProblem: 'Orca has no SSH target for VPS' })
+  assert.equal(host.remote, null)
+  assert.equal(host.remoteProblem, 'Orca has no SSH target for VPS')
+})
+
+test('shell quoting keeps $, backticks and quotes literal', () => {
+  assert.equal(shellQuote('$(rm -rf ~)`x`'), "'$(rm -rf ~)`x`'")
+  assert.equal(shellQuote("a'b"), "'a'\\''b'")
+  assert.equal(shellQuote(''), "''")
 })
 
 test('only plain remote URLs reach Entire as --repo', () => {
