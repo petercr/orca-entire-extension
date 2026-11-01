@@ -292,13 +292,80 @@
         border-color: transparent;
         background: var(--tone);
       }
+      details.gate-item {
+        padding: 0;
+      }
       .gate {
         display: flex;
         align-items: center;
         gap: 8px;
         min-width: 0;
         padding: 6px 10px;
-        border-top: 1px solid var(--border);
+      }
+      .gate-item > summary.gate {
+        border-radius: 0;
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--fg);
+      }
+      .gate-item > summary::before {
+        content: none;
+      }
+      /* The chevron sits at the end, after the reviewers' initials. */
+      .gate-item > summary::after {
+        content: '';
+        flex: none;
+        width: 5px;
+        height: 5px;
+        margin: 0 2px 0 2px;
+        border-right: 1.5px solid var(--muted);
+        border-bottom: 1.5px solid var(--muted);
+        transform: rotate(-45deg);
+        transition: transform 0.12s;
+      }
+      .gate-item[open] > summary::after {
+        transform: rotate(45deg);
+      }
+      .gate-body {
+        padding: 0 10px 8px 34px;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+      .gate-body > * + * {
+        margin-top: 5px;
+      }
+      .gate-body .notice {
+        margin: 5px 0 0;
+      }
+      .gate-body .list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+      .item .stack {
+        flex: 1;
+        min-width: 0;
+      }
+      /* A reviewer's comment, under their name. */
+      .gate-body .reason {
+        padding-left: 24px;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+      .facts {
+        color: var(--muted);
+      }
+      .facts .sep {
+        padding: 0 4px;
+        opacity: 0.6;
       }
       .gate svg {
         flex: none;
@@ -318,6 +385,7 @@
         flex: none;
       }
       .who {
+        flex: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -561,14 +629,19 @@
           return status && !status.enabled ? 'warn' : 'ok'
         }
 
-        function section(id, label, count, body, openByDefault) {
-          var details = el('details')
-          details.open = Object.prototype.hasOwnProperty.call(opened, id) ? opened[id] : openByDefault
+        // A <details> that stays open or closed across rerenders, which rebuild the panel every minute.
+        function disclosure(id, className, openByDefault) {
+          var details = el('details', className)
+          details.open = Object.prototype.hasOwnProperty.call(opened, id) ? opened[id] : Boolean(openByDefault)
           details.addEventListener('toggle', function () {
             opened[id] = details.open
           })
+          return details
+        }
+
+        function section(id, label, count, body, openByDefault) {
           var summary = add(el('summary'), el('span', 'label', label), typeof count === 'string' ? el('span', 'count', count) : count)
-          return add(details, summary, add(el('div', 'body'), body))
+          return add(disclosure(id, null, openByDefault), summary, add(el('div', 'body'), body))
         }
 
         function row(mark, main, meta, end) {
@@ -780,20 +853,130 @@
           var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line)))
           var merge = value.merge
           if (!merge) return card
-          if (merge.conflicts) add(card, gateRow({ key: 'conflicts', status: 'failed', blocking: true, summary: words(merge.conflicts), people: [] }))
+          var base = value.base || 'the base branch'
+          if (merge.conflicts)
+            add(card, gateRow({ key: 'conflicts', status: 'failed', blocking: true, evaluated: true, summary: words(merge.conflicts), rationale: 'Resolve the conflicts with ' + base + ' before merging.', people: [] }, value, base))
           merge.gates.forEach(function (gate) {
-            add(card, gateRow(gate))
+            add(card, gateRow(gate, value, base))
           })
           return card
         }
 
-        function gateRow(gate) {
+        // Collapsed: the gate's mark, name, short summary and approvers. Open: what decided it.
+        function gateRow(gate, value, base) {
           var kind = gate.status === 'passed' ? 'ok' : gate.status === 'failed' ? (gate.blocking ? 'bad' : 'warn') : ''
           var people = el('span', 'people')
           ;(gate.people || []).slice(0, 4).forEach(function (login) {
             add(people, person(login))
           })
-          return titled(add(el('div', 'gate ' + kind), statusIcon(kind), el('span', 'label', sentence(gate.key)), gate.summary ? el('span', 'meta clip', gate.summary) : el('span', 'clip'), people), gate.rationale)
+          var summary = add(el('summary', 'gate ' + kind), statusIcon(kind), el('span', 'label', sentence(gate.key)), gate.summary ? el('span', 'meta clip', gate.summary) : el('span', 'meta clip'), people)
+          var id = 'gate:' + (value.number || '') + ':' + (value.change || '') + ':' + gate.key
+          return add(disclosure(id, 'gate-item'), summary, gateBody(gate, base))
+        }
+
+        function gateBody(gate, base) {
+          var body = el('div', 'gate-body')
+          var detail = gate.detail
+          // Up to date's rationale only restates the line its detail shows.
+          if (gate.rationale && gate.rationale !== gate.summary && !(detail && gate.type === 'up_to_date')) add(body, el('div', null, gate.rationale))
+          if (detail && gate.type === 'approvals') add(body, approvalsDetail(detail))
+          else if (detail && gate.type === 'checks') add(body, checksDetail(detail))
+          else if (detail && gate.type === 'findings') add(body, findingsGateDetail(detail))
+          else if (detail && gate.type === 'up_to_date') add(body, upToDateDetail(detail, base))
+          if (gate.staleReason) add(body, el('div', 'facts', 'Stale: ' + gate.staleReason))
+          add(body, factLine([
+            gate.blocking ? 'Blocks merging' : 'Advisory',
+            gate.evaluated !== false && gate.at ? titled(el('span', null, 'Checked ' + ago(gate.at)), new Date(gate.at).toLocaleString()) : null,
+            gate.sha ? add(el('span'), document.createTextNode('at '), el('span', 'mono', gate.sha)) : null,
+            gate.outdated ? 'on an earlier commit' : null
+          ]))
+          return body
+        }
+
+        // A muted line of short facts joined by dots; each is text or a node.
+        function factLine(list) {
+          var line = el('div', 'facts')
+          list.filter(Boolean).forEach(function (fact, i) {
+            if (i) add(line, el('span', 'sep', '·'))
+            add(line, typeof fact === 'string' ? document.createTextNode(fact) : fact)
+          })
+          return line
+        }
+
+        function item(mark, main, sub, end) {
+          return add(el('div', 'item'), mark, add(el('div', 'stack'), main, sub), end)
+        }
+
+        function approvalsDetail(detail) {
+          var states = {
+            approved: { tone: 'ok', text: 'Approved' },
+            changes_requested: { tone: 'bad', text: 'Changes requested' },
+            commented: { tone: '', text: 'Commented' },
+            dismissed: { tone: '', text: 'Dismissed' },
+            pending: { tone: 'warn', text: 'Pending' }
+          }
+          var wrap = el('div')
+          var list = el('div', 'list')
+          detail.reviewers.forEach(function (reviewer) {
+            var state = states[reviewer.state] || { tone: '', text: sentence(reviewer.state) }
+            var pills = add(el('span', 'tags'), reviewer.outdated ? titled(el('span', 'pill', 'Outdated'), 'Reviewed an earlier commit') : null, el('span', 'pill ' + state.tone, state.text))
+            add(list, item(person(reviewer.login), el('div', 'clip', reviewer.login), null, pills), reviewer.reason ? el('div', 'reason', reviewer.reason) : null)
+          })
+          // With no reviewers, the gate's rationale already says so.
+          if (detail.reviewers.length) add(wrap, list)
+          if (detail.changesRequested) add(wrap, el('div', 'notice bad', 'A reviewer requested changes.'))
+          return add(
+            wrap,
+            factLine([
+              'Needs ' + plural(detail.required, 'approval', 'approvals'),
+              detail.selfApproval === true ? 'self-approval counts' : detail.selfApproval === false ? "the author's own approval doesn't count" : null,
+              detail.dismissStale ? 'a push dismisses approvals' : null,
+              detail.staleDismissed ? plural(detail.staleDismissed, 'stale approval', 'stale approvals') + ' dismissed' : null
+            ])
+          )
+        }
+
+        function duration(from, to) {
+          var seconds = Math.round((Date.parse(to) - Date.parse(from)) / 1000)
+          if (!isFinite(seconds) || seconds < 0) return null
+          return seconds < 60 ? seconds + ' s' : Math.floor(seconds / 60) + ' min ' + (seconds % 60) + ' s'
+        }
+
+        function checksDetail(detail) {
+          var wrap = el('div')
+          var list = el('div', 'list')
+          detail.runs.forEach(function (run) {
+            var kind = tone(run.status)
+            var meta = [run.app && run.app !== run.name ? run.app : null, run.startedAt && run.completedAt ? duration(run.startedAt, run.completedAt) : null].filter(Boolean).join(' · ')
+            add(list, titled(item(el('span', 'dot ' + kind), el('div', 'clip', run.name), meta ? el('div', 'meta clip', meta) : null, el('span', 'pill ' + kind, sentence(run.status))), run.name))
+          })
+          if (!detail.runs.length) add(list, el('div', 'muted', 'No checks ran on this commit.'))
+          if (detail.total > detail.runs.length) add(list, el('div', 'muted', '…and ' + (detail.total - detail.runs.length) + ' more'))
+          add(wrap, list)
+          var rule = detail.required.length ? 'Required: ' + detail.required.join(', ') : detail.requireAll === true ? 'Every check must pass' : detail.requireAll === false ? 'Failing checks are allowed' : null
+          return rule ? add(wrap, factLine([rule])) : wrap
+        }
+
+        function findingsGateDetail(detail) {
+          var wrap = el('div')
+          var list = el('div', 'list')
+          detail.reviewers.forEach(function (reviewer) {
+            var found = reviewer.blocking + reviewer.nonBlocking
+            var result = found ? plural(found, 'finding', 'findings') + (reviewer.blocking ? ', ' + reviewer.blocking + ' blocking' : ', none blocking') : 'Nothing found'
+            var kind = reviewer.blocking ? 'bad' : found ? 'warn' : tone(reviewer.status)
+            add(list, item(el('span', 'dot ' + kind), el('div', 'clip', reviewer.name), el('div', 'meta clip', [reviewer.kind && sentence(reviewer.kind), words(reviewer.status)].filter(Boolean).join(' · ')), el('span', 'pill ' + kind, result)))
+          })
+          if (!detail.reviewers.length) add(list, el('div', 'muted', 'No reviewer has run.'))
+          add(wrap, list)
+          if (detail.inFlight) add(wrap, el('div', 'notice warn', 'A review is running now.'))
+          var severity = detail.severity
+          var threshold = detail.minSeverity ? 'Blocks on ' + detail.minSeverity + (detail.minSeverity === 'high' ? '' : ' or higher') + ' findings' : null
+          return add(wrap, factLine([threshold, severity.high + ' high, ' + severity.medium + ' medium, ' + severity.low + ' low', detail.reviewedHead === false ? 'the latest commit is not reviewed yet' : null]))
+        }
+
+        function upToDateDetail(detail, base) {
+          var line = detail.behindBy > 0 ? plural(detail.behindBy, 'commit', 'commits') + ' behind ' + base : detail.compare === 'identical' ? 'Same as ' + base : detail.compare === 'ahead' ? 'Ahead of ' + base + ', nothing missing' : 'Nothing missing from ' + base
+          return add(el('div'), el('div', null, line), detail.allowBehind ? factLine(['Behind is fine while it still merges cleanly']) : null)
         }
 
         function findingsList(findings) {
@@ -823,7 +1006,8 @@
           )
           var text = finding.body && finding.body !== finding.title ? el('div', 'text', finding.body) : null
           var reason = finding.reason ? add(el('div', 'reason ' + (finding.status === 'resolved' ? 'ok' : '')), el('b', null, sentence(finding.status || 'note') + ': '), document.createTextNode(finding.reason)) : null
-          return add(el('details', 'finding card'), summary, text || reason ? add(el('div', 'finding-body'), text, reason) : null)
+          var id = 'finding:' + [finding.file, finding.line, finding.title].join(':')
+          return add(disclosure(id, 'finding card'), summary, text || reason ? add(el('div', 'finding-body'), text, reason) : null)
         }
 
         // The worker summarizes `entire trail show` and `entire trail finding list` (src/worker/trail.mjs).

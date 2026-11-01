@@ -82,6 +82,69 @@ test('a reviewed, approved change shows checks, approvers and the review', () =>
   assert.deepEqual(summary.findings, { open: 0, high: 0, medium: 0, low: 0, resolved: 0, dismissed: 0, stale: 0, items: [] })
 })
 
+test('each gate carries what the panel shows when it is opened', () => {
+  const gates = Object.fromEntries(trailSummary(merged).merge.gates.map((gate) => [gate.key, gate]))
+  assert.deepEqual(gates.approvals.detail, {
+    approved: 1,
+    required: 1,
+    changesRequested: false,
+    staleDismissed: 0,
+    selfExcluded: false,
+    selfApproval: true,
+    dismissStale: false,
+    reviewers: [{ login: 'petercr', state: 'approved', reason: null, outdated: false }]
+  })
+  assert.deepEqual([gates.approvals.rationale, gates.approvals.sha, gates.approvals.outdated, gates.approvals.evaluated], ['1 approval(s) recorded', 'c54ddcd', false, true])
+  // The change's own runs, with their app and timing, rather than the gate's copy.
+  assert.deepEqual(gates.checks.detail.runs[0], {
+    name: 'Socket Security: Pull Request Alerts',
+    app: 'Socket Security',
+    status: 'success',
+    startedAt: '2026-10-31T13:55:26Z',
+    completedAt: '2026-10-31T13:55:44Z'
+  })
+  assert.deepEqual([gates.checks.detail.total, gates.checks.detail.requireAll, gates.checks.detail.required], [2, true, []])
+  assert.deepEqual(
+    { ...gates.findings.detail, reviewers: gates.findings.detail.reviewers.map((reviewer) => reviewer.name) },
+    { minSeverity: 'high', blocking: 0, reviewedHead: true, inFlight: false, reviewers: ['Code review', 'Trail Review'], severity: { high: 0, medium: 0, low: 0 } }
+  )
+  assert.deepEqual(gates.up_to_date.detail, { behindBy: 0, compare: 'ahead', allowBehind: false })
+})
+
+test('a gate not yet evaluated has no detail, and approvals list no one', () => {
+  const gates = Object.fromEntries(trailSummary(created).merge.gates.map((gate) => [gate.key, gate]))
+  assert.equal(gates.findings.evaluated, false)
+  assert.equal(gates.findings.detail, null)
+  assert.deepEqual(gates.approvals.detail.reviewers, [])
+})
+
+test('checks fall back on the gate copy and reviewers appear once, marked when they reviewed an older commit', () => {
+  const { merge } = trailSummary({
+    changes: [
+      {
+        current: true,
+        mergeability: {
+          checks: { runs: [] },
+          gates: [
+            {
+              gate_type: 'approvals',
+              head_sha: 'new',
+              reviewers: [{ login: 'ana', state: 'changes_requested', reviewed_head_sha: 'old', reason: 'Needs a test' }],
+              value: { reviewers: [{ login: 'ana', state: 'changes_requested' }], changes_requested: true, required: 2 }
+            },
+            { gate_type: 'checks', value: { checks: [{ name: 'lint', status: 'in_progress' }], config: { required_checks: ['lint'] } } }
+          ]
+        }
+      }
+    ]
+  })
+  const [approvals, checks] = merge.gates
+  assert.deepEqual(approvals.detail.reviewers, [{ login: 'ana', state: 'changes_requested', reason: 'Needs a test', outdated: true }])
+  assert.equal(approvals.detail.changesRequested, true)
+  assert.deepEqual(checks.detail.runs, [{ name: 'lint', app: null, status: 'in_progress', startedAt: null, completedAt: null }])
+  assert.deepEqual(checks.detail.required, ['lint'])
+})
+
 test('findings keep their text, confidence, status and how they were resolved, open ones first', () => {
   const { findings } = trailSummary(created, {
     findings: {
