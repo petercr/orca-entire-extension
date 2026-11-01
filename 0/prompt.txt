@@ -1,0 +1,10 @@
+pr 1 merged
+
+---
+
+trail code review failed again: 
+### Medium finding
+
+**Location:** `src/worker/ssh-targets.mjs:26`
+
+When an SSH-config target omits `port` (the shape accepted in `test/ssh-targets.test.mjs:14`) and its alias specifies a nondefault port, this substitutes 22. `src/worker/hosts.mjs:41` then passes `-p 22`, overriding SSH config and preventing status, checkpoint and diff reads from connecting. Preserve an unspecified port for config aliases and omit `-p` in that case.
