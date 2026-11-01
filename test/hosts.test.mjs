@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tmpdir } from 'node:os'
-import { entireCommand, gitCommand, safeRepoUrl, serverHost, workspaceHost } from '../src/worker/hosts.mjs'
+import { branchName, entireCommand, gitCommand, safeRepoUrl, serverHost, workspaceHost } from '../src/worker/hosts.mjs'
 
 test('WSL UNC paths map to a distro and a Linux path', () => {
   assert.deepEqual(workspaceHost('\\\\wsl.localhost\\Ubuntu\\home\\peterc\\ccw'), {
@@ -68,4 +68,14 @@ test('only plain remote URLs reach Entire as --repo', () => {
   for (const url of [null, '', '--upload-pack=x', '-o@x:y', 'https://a b', '/home/ubuntu/repo', 'git@host:a\nb']) {
     assert.equal(safeRepoUrl(url), null)
   }
+})
+
+test("server branches follow Git's ref rules, not the diff's narrower filter", () => {
+  for (const name of ['main', 'fix/issue+620', 'feat/über', 'release@2', 'a.b/c-d_e', "it's,fine"]) {
+    assert.equal(branchName(name), name)
+  }
+  for (const name of [null, '', '-x', '--upload-pack=x', '/a', 'a/', 'a//b', 'a..b', 'a.', 'a/.b', 'a.lock', 'a.lock/b', 'a b', 'a~1', 'a^', 'a:b', 'a?', 'a*', 'a[b', 'a\\b', 'a@{1}', '@', 'a\nb', 'x'.repeat(256)]) {
+    assert.equal(branchName(name), null, String(name))
+  }
+  assert.equal(serverHost({ environment: 'VPS', path: '/r', repoUrl: 'git@github.com:a/b.git', branch: 'fix/issue+620' }).branch, 'fix/issue+620')
 })

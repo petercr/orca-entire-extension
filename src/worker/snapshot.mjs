@@ -78,7 +78,7 @@ export async function collectSnapshot(orca, { signal } = {}) {
     workspace.server = { environment: server.environment, branch: server.branch }
     workspace.where = `${server.environment} ${path}`
     if (!host.repo) return { ...snapshot, workspace, problem: `${path} on ${server.environment} has no origin remote, so Entire can't tell which repository it is.` }
-    if (!safeRef(host.branch)) return { ...snapshot, workspace, problem: `${path} on ${server.environment} is on no branch Entire can read.` }
+    if (!host.branch) return { ...snapshot, workspace, problem: `${path} on ${server.environment} is on no branch (detached HEAD?), so Entire has no trail to look up.` }
   } else {
     workspace.where = host.kind === 'wsl' ? `WSL ${host.distro} ${host.path}` : path
   }
@@ -100,6 +100,11 @@ export async function collectSnapshot(orca, { signal } = {}) {
 function unresolved(context, via, candidates, unreachable) {
   const name = context.branch ? `${context.displayName} on ${context.branch}` : context.displayName
   const offline = unreachable.length > 0 ? ` (couldn't ask ${unreachable.join('; ')})` : ''
+  if (via === 'server' && unreachable.length > 0) {
+    // A server that didn't answer may hold the focused workspace under the same repo name.
+    const found = candidates.length > 0 ? `${candidates.length} other ${candidates.length === 1 ? 'match' : 'matches'}, but ` : ''
+    return `${name}: ${found}couldn't ask every paired server, so the focused workspace is unknown${offline}. Use ↻ once it answers.`
+  }
   if (via === 'server' && candidates.length > 1) {
     // Orca names only the repo of a paired server's workspace, so its worktrees look alike.
     return `${name}: ${candidates.length} workspaces of this repository match on paired servers, and Orca doesn't tell plugins which one is focused.`

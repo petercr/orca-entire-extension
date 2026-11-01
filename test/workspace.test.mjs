@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { matchServerWorktrees, matchWorktrees, pairedServers, shortBranch } from '../src/worker/workspace.mjs'
+import { matchServerWorktrees, matchWorktrees, pairedServers, serverResolution, shortBranch } from '../src/worker/workspace.mjs'
 
 test("Orca CLI refs compare with readContext's short branch names", () => {
   assert.equal(shortBranch('refs/heads/feat/trails'), 'feat/trails')
@@ -65,4 +65,19 @@ test('a server workspace with a branch matches by name and branch, like a local 
     ['/home/ubuntu/leadgen']
   )
   assert.deepEqual(matchServerWorktrees(worktrees, repos, { displayName: 'leadgen', branch: 'main', terminals: [] }), [])
+})
+
+test('a server match counts only when it is the only one and every server answered', () => {
+  const context = { displayName: 'leadgen', branch: '', terminals: [] }
+  const match = (environment) => ({ environment, worktree: worktrees[1], repo: repos[1] })
+  const one = serverResolution(context, [match('VPS one')])
+  assert.equal(one.path, '/home/ubuntu/leadgen')
+  assert.deepEqual(one.server, { environment: 'VPS one', branch: 'main', repoUrl: null })
+  // Another server with a leadgen of its own failed to answer: it may be the focused one.
+  const partial = serverResolution(context, [match('VPS one')], ['VPS two: timed out'])
+  assert.equal(partial.path, null)
+  assert.equal(partial.server, undefined)
+  assert.deepEqual(partial.candidates, ['VPS one /home/ubuntu/leadgen'])
+  assert.equal(serverResolution(context, [match('VPS one'), match('VPS two')]).path, null)
+  assert.equal(serverResolution(context, []).path, null)
 })

@@ -16,7 +16,17 @@ export function workspaceHost(workspacePath) {
 // findings live on Entire's server, though, so this desktop's Entire reads them by repository and
 // branch. Status, checkpoints and the diff need the checkout and stay out of reach.
 export function serverHost({ environment, path, repoUrl, branch }) {
-  return { kind: 'server', environment, path, repo: safeRepoUrl(repoUrl), branch }
+  return { kind: 'server', environment, path, repo: safeRepoUrl(repoUrl), branch: branchName(branch) }
+}
+
+// A branch as Git allows it (`git check-ref-format --branch`), or null. Orca reports it and it goes to
+// Entire as one argument, never through a shell, so Git's rules are the only limit, plus no leading "-",
+// which would read as a flag.
+export function branchName(name) {
+  if (typeof name !== 'string' || name.length === 0 || name.length > 255) return null
+  if (/[\x00-\x20\x7f~^:?*[\\]/.test(name) || name.includes('..') || name.includes('@{') || name === '@') return null
+  if (name.startsWith('-') || name.startsWith('/') || name.endsWith('/') || name.endsWith('.')) return null
+  return name.split('/').every((part) => part && !part.startsWith('.') && !part.endsWith('.lock')) ? name : null
 }
 
 // The remote URL comes from Orca and goes to Entire as one argument; it must not read as a flag.

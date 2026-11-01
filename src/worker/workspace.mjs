@@ -37,9 +37,14 @@ async function resolveOnServers(context, environments, { signal }) {
       }
     })
   )
-  const matches = found.flat()
+  return serverResolution(context, found.flat(), unreachable)
+}
+
+// Only the repo's name identifies a server's workspace, so a match counts only when it is the sole one
+// and every server answered: a server that didn't may hold the focused workspace under the same name.
+export function serverResolution(context, matches, unreachable = []) {
   const candidates = matches.map((match) => `${match.environment} ${match.worktree.path}`)
-  if (matches.length !== 1) return { context, path: null, via: 'server', candidates, unreachable }
+  if (matches.length !== 1 || unreachable.length > 0) return { context, path: null, via: 'server', candidates, unreachable }
   const [{ environment, worktree, repo }] = matches
   return {
     context,
