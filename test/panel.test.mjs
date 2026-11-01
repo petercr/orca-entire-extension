@@ -157,3 +157,14 @@ test("shownAt reads the panel's entry time, or null without one", async () => {
   assert.equal(shownAt(context, root), Date.parse('2026-10-31T12:00:00Z'))
   assert.equal(shownAt({ ...context, branch: 'feature' }, root), null)
 })
+
+test("a paired server's workspace is told apart by its server, not by its path alone", () => {
+  const onServer = (environment, at) => ({ ...entry('leadgen', '/home/ubuntu/leadgen', [], at), workspace: { name: 'leadgen', branch: '', path: '/home/ubuntu/leadgen', terminals: [], server: { environment, branch: 'main' } } })
+  let data = mergeEntry(null, onServer('VPS one', 'first'))
+  data = mergeEntry(data, onServer('VPS two', 'second'))
+  assert.deepEqual(data.workspaces.map((e) => e.at), ['second', 'first'])
+  data = mergeEntry(data, onServer('VPS one', 'third'))
+  assert.deepEqual(data.workspaces.map((e) => e.at), ['third', 'second'])
+  // readContext names it by its repo with no branch, which is how the panel finds it.
+  assert.equal(findShown({ workspaces: [data.workspaces[0]] }, { displayName: 'leadgen', branch: '', terminals: [] }).at, 'third')
+})

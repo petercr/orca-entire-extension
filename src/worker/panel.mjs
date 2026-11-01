@@ -45,10 +45,11 @@ export function renderPanel(template, data) {
   return template.replace(DATA, (_, open, _old, close) => `${open}${embedData(data)}${close}`)
 }
 
-// Same path, or a terminal they share.
+// Same path on the same host, or a terminal they share.
 function sameWorkspace(entry, other) {
+  const environment = (e) => e.workspace.server?.environment ?? null
   return (
-    (entry.workspace.path && other.workspace.path === entry.workspace.path) ||
+    (entry.workspace.path && other.workspace.path === entry.workspace.path && environment(other) === environment(entry)) ||
     other.workspace.terminals.some((id) => entry.workspace.terminals.includes(id)) ||
     (!other.workspace.path && other.workspace.name === entry.workspace.name && other.workspace.branch === entry.workspace.branch)
   )

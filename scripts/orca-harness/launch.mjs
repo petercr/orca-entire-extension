@@ -1,5 +1,5 @@
 // Runs the worker inside Orca.exe the way Orca forks plugin workers: ELECTRON_RUN_AS_NODE and the env allowlist.
-// Usage (Windows Node): node scripts/orca-harness/launch.mjs <terminal <handle> | no-terminal | none | local-entire>
+// Usage (Windows Node): node scripts/orca-harness/launch.mjs <terminal <handle> | repo <display name> | no-terminal | none | local-entire>
 import { execFileSync, spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'

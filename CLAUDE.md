@@ -21,7 +21,8 @@ Run these with Windows Node from the repo root:
 
 - `node --test`
 - `node scripts/orca-harness/launch.mjs <scenario>`, where the scenario is `no-terminal`, `none`,
-  `local-entire`, or `terminal <handle>` with a handle from `orca terminal list --json`.
+  `local-entire`, `terminal <handle>` with a handle from `orca terminal list --json`, or `repo <name>` for a
+  paired server's workspace, named as in `orca repo list --environment <server>`.
 
 From a WSL terminal, `cd "/mnt/c/Users/pcruc/Web Projects/orca-entire-extension"` and call Windows Node
 by path, `"/mnt/c/Program Files/nodejs/node.exe"`: WSL has `appendWindowsPath=false`, so `node.exe` is
@@ -44,6 +45,10 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   opens a Windows Terminal window.
 - WSL workspaces arrive as `\\wsl.localhost\<distro>\...` paths. The worker runs `entire` inside WSL
   through `wsl.exe`, which uses the WSL Entire login, not the Windows one.
+- A workspace on a paired Orca server (the VPS) isn't in the desktop runtime: `readContext` gives its repo's
+  name, an empty branch and no terminals, and the Orca CLI reaches it only with `--environment <name>`. The
+  worker reads its trail and findings with the Windows `entire --repo <origin URL> --branch <branch>`;
+  status and checkpoints need the checkout, which it can't reach. Try it with the harness's `repo <name>`.
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes.
 - The command palette drops a command's result; only the Run button in Settings → Plugins shows it
   (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.

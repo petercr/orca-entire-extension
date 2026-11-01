@@ -5,8 +5,10 @@ import { join } from 'node:path'
 const [pluginRoot, scenario, terminal] = process.argv.slice(2)
 const load = (file) => import(pathToFileURL(join(pluginRoot, 'src', 'worker', file)).href)
 
-// What workspace.readContext returns in each scenario.
+// What workspace.readContext returns in each scenario. A paired server's workspace (a VPS) comes as its
+// repo's display name with no branch and no terminals.
 const contexts = {
+  repo: { branch: '', displayName: terminal, terminals: [] },
   terminal: { branch: 'main', displayName: 'main', terminals: [{ id: terminal }] },
   'no-terminal': { branch: 'main', displayName: 'main', terminals: [] },
   none: null
@@ -17,8 +19,8 @@ if (scenario === 'local-entire') {
   const { runEntire, failureLine } = await load('entire-cli.mjs')
   const result = await runEntire({ kind: 'local', path: pluginRoot }, ['status', '--json']).catch((error) => ({ error }))
   console.log(result.error ? `✗ spawn: ${result.error.message}` : result.code === 0 ? `✓ local entire status (${result.ms} ms): ${result.stdout.slice(0, 160)}` : `✗ ${failureLine(result)}`)
-} else if (!Object.hasOwn(contexts, scenario) || (scenario === 'terminal' && !terminal)) {
-  console.log('Scenarios: terminal <handle>, no-terminal, none, local-entire')
+} else if (!Object.hasOwn(contexts, scenario) || ((scenario === 'terminal' || scenario === 'repo') && !terminal)) {
+  console.log('Scenarios: terminal <handle>, repo <display name>, no-terminal, none, local-entire')
   process.exitCode = 1
 } else {
   const { default: activate } = await load('main.mjs')

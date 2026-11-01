@@ -9,7 +9,9 @@ phase 1 spikes.
 ## Environment
 
 - Orca desktop runs on Windows (1.4.245). Plugins are in alpha: manifest format 2, host API 1.0.
-- Most Orca and Entire projects live in WSL (`\\wsl.localhost\Ubuntu\...`). Orca also has an SSH host.
+- Most Orca and Entire projects live in WSL (`\\wsl.localhost\Ubuntu\...`). Others live
+  on a VPS that Orca reaches as a paired Orca server (`orca environment list`: "Endo VPS Server", an
+  orcad over an SSH tunnel to `ubuntu@15.204.88.195`).
 - Entire CLI `0.12.3-nightly` on both sides: WSL (keyring login) and Windows in `%USERPROFILE%\.local\bin`
   (Credential Manager login).
 - This repo: `C:\Users\pcruc\Web Projects\orca-entire-extension`, origin
@@ -73,7 +75,9 @@ Run from Windows Node with the worker's env allowlist:
   carries a path (see the asks below).
 - Run Entire where the repo and its login live. For a WSL path, use
   `wsl.exe -d <distro> --cd <path> -e bash -lc 'exec entire "$@"' entire ...`. For a local path, run
-  `entire` directly. SSH workspaces come later.
+  `entire` directly. For a paired server's workspace (a VPS), run this desktop's `entire` outside any
+  checkout with `--repo <origin URL> --branch <branch>`: trails and findings live on Entire's server, so
+  they read fine. Status, checkpoints and the diff need the checkout, which the worker can't reach (see below), so the panel says so.
 - Shell out to the Entire CLI rather than calling its REST API. The CLI owns login, contexts and cell
   routing, so the plugin never holds a token. `entire api` covers gaps.
 - Refresh the focused workspace on `agent.status.changed`, when focus moves to it (no event says so:
@@ -126,18 +130,25 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 ## Asks for the Orca team
 
 1. A channel from a panel to its own worker (#25256, or a push channel). It blocks any live panel.
-2. `workspace.readContext`: add the worktree id, path and host (local, WSL, SSH).
+2. `workspace.readContext`: add the worktree id, path and host (local, WSL, SSH, paired server). For a
+   paired server's workspace it now gives only the repo's name, with no branch or terminals.
 3. Task sources and plugin settings (#26282), with a start recipe that can check out an existing branch.
 4. Status bar items and sidebar cards (#23143, #26951).
 5. Opening external URLs from panels and workers (#27568).
 6. Long-lived worker subscriptions: the 5-minute idle reaper stops `trail watch`.
-7. A way to run a command on the workspace's host (WSL, SSH) from a worker.
+7. A way to run a command on the workspace's host (WSL, SSH, paired server) from a worker, without a
+   terminal tab.
 
 ## Risks and open questions
 
 - Phases 3–5 depend on unmerged Orca PRs: #25256 quiet since Oct 7, #26282 active, #15315 (forge
   providers) stale since August.
-- The WSL bridge does not cover SSH workspaces.
+- A paired server's workspace reaches `readContext` as its repo's display name, an empty branch and
+  no terminals (seen 2026-11-01): the desktop runtime doesn't hold it. The worker matches the repo name
+  against each paired server's `orca repo list` and `worktree list --environment`. Two worktrees of one
+  repo on a server can't be told apart, and the panel says so. Running anything on the VPS is out: Orca's
+  SSH key needs a passphrase and no ssh-agent holds it, and the Orca CLI runs commands there only in
+  visible terminal tabs.
 - Both sides run Entire 0.12.3-nightly. On Windows, `entire status` reports this repo's 7 Codex hooks
   as needing trust approval in Codex (`/hooks`); that only matters when using Codex here.
   `entire agent add codex` and `entire doctor` rewrite committed hook files, so run them on a branch.

@@ -9,11 +9,13 @@ export function orcaCliPath(execPath = process.execPath, platform = process.plat
   return existsSync(cli) ? cli : null
 }
 
-export async function orcaCli(args, { signal } = {}) {
+// `environment` sends the command to a paired Orca server (a VPS, say) instead of this desktop's runtime.
+export async function orcaCli(args, { signal, environment } = {}) {
   const cli = orcaCliPath()
   if (!cli) throw new Error(`Orca CLI not found beside ${process.execPath}`)
-  const name = `orca ${args.slice(0, 2).join(' ')}`
-  const { code, stdout } = await run(cli, [...args, '--json'], { env: desktopEnv(), signal })
+  const name = `orca ${args.slice(0, 2).join(' ')}${environment ? ` on ${environment}` : ''}`
+  const target = environment ? ['--environment', environment] : []
+  const { code, stdout } = await run(cli, [...args, ...target, '--json'], { env: desktopEnv(), signal })
   let reply
   try {
     reply = JSON.parse(stdout)

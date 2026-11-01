@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { entireCommand, workspaceHost } from '../src/worker/hosts.mjs'
+import { tmpdir } from 'node:os'
+import { entireCommand, gitCommand, safeRepoUrl, serverHost, workspaceHost } from '../src/worker/hosts.mjs'
 
 test('WSL UNC paths map to a distro and a Linux path', () => {
   assert.deepEqual(workspaceHost('\\\\wsl.localhost\\Ubuntu\\home\\peterc\\ccw'), {
@@ -51,4 +52,20 @@ test('local commands run entire in the workspace', () => {
     args: ['status', '--json'],
     cwd: 'C:/repo'
   })
+})
+
+test("a paired server's workspace reads Entire from here, outside any checkout", () => {
+  const host = serverHost({ environment: 'Endo VPS Server', path: '/home/ubuntu', repoUrl: 'git@github.com:petercr/endo.chat_backend.git', branch: 'main' })
+  assert.equal(host.repo, 'git@github.com:petercr/endo.chat_backend.git')
+  assert.deepEqual(entireCommand(host, ['trail', 'show']), { command: 'entire', args: ['trail', 'show'], cwd: tmpdir() })
+  assert.throws(() => gitCommand(host, ['status']), /only on Endo VPS Server/)
+})
+
+test('only plain remote URLs reach Entire as --repo', () => {
+  for (const url of ['git@github.com:petercr/leadgen.git', 'https://github.com/petercr/leadgen.git', 'entire://aws-us-east-2.entire.io/et/entire-repos/x', 'ssh://git@host:22/a/b.git']) {
+    assert.equal(safeRepoUrl(url), url)
+  }
+  for (const url of [null, '', '--upload-pack=x', '-o@x:y', 'https://a b', '/home/ubuntu/repo', 'git@host:a\nb']) {
+    assert.equal(safeRepoUrl(url), null)
+  }
 })

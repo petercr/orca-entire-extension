@@ -5,7 +5,7 @@ export function connectionReport(orca, snapshot) {
 
 export function reportLines({ workspace, problem, steps }) {
   const lines = []
-  if (workspace?.where) lines.push(`✓ ${workspace.name} on ${workspace.branch} → ${workspace.where} (via ${workspace.via})`)
+  if (workspace?.where) lines.push(`✓ ${workspace.name} on ${workspace.server?.branch ?? workspace.branch} → ${workspace.where} (via ${workspace.via})`)
   if (problem) lines.push(`✗ ${problem}`)
   for (const step of steps) {
     const mark = step.ok ? '✓' : step.optional ? '·' : '✗'

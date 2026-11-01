@@ -1,12 +1,14 @@
 import { failureLine, runEntire } from './entire-cli.mjs'
 import { diffStat, safeRef } from './git.mjs'
-import { workspaceHost } from './hosts.mjs'
+import { serverHost, workspaceHost } from './hosts.mjs'
 import { trailSummary } from './trail.mjs'
 import { resolveFocusedWorkspace } from './workspace.mjs'
 
 const VERSION = { key: 'version', label: 'Entire CLI', args: ['--version'], parse: (out) => out.trim().split('\n')[0] }
 
 // Each step keeps its own outcome, so one failed call (a branch without a trail, say) hides nothing else.
+// `byRepo` steps read Entire's server and also work for a paired server's workspace, given --repo and
+// --branch; the others read the checkout.
 const STEPS = [
   {
     key: 'status',
@@ -21,6 +23,7 @@ const STEPS = [
     key: 'trail',
     label: 'Trail',
     args: ['trail', 'show', '--json'],
+    byRepo: true,
     optional: true,
     parse: JSON.parse,
     summarize: (trail) => `#${trail.number} ${trail.title} · ${trail.status}`
@@ -40,6 +43,7 @@ const FINDINGS = {
   key: 'findings',
   label: 'Findings',
   args: ['trail', 'finding', 'list', '--status', 'any', '--freshness', 'any', '--json'],
+  byRepo: true,
   parse: JSON.parse
 }
 
@@ -56,7 +60,7 @@ export async function collectSnapshot(orca, { signal } = {}) {
   } catch (error) {
     return { ...snapshot, problem: `Workspace lookup failed: ${error.message}` }
   }
-  const { context, path, via, candidates } = resolved
+  const { context, path, via, candidates, server, unreachable = [] } = resolved
   if (!context) return { ...snapshot, problem: 'No workspace is focused' }
   const workspace = {
     name: context.displayName,
@@ -65,13 +69,19 @@ export async function collectSnapshot(orca, { signal } = {}) {
     path,
     via
   }
-  if (!path) {
-    // Without a terminal, only branch and name identify the workspace, and many repos share "main".
-    const why = candidates.length > 0 ? `${candidates.length} workspaces match it` : 'no workspace matches it'
-    return { ...snapshot, workspace, problem: `${context.displayName} on ${context.branch}: ${why}. Open a terminal in it and try again.` }
+  if (!path) return { ...snapshot, workspace, problem: unresolved(context, via, candidates, unreachable) }
+
+  let host = workspaceHost(path)
+  if (server) {
+    host = serverHost({ ...server, path })
+    // readContext gives a server workspace's repo name and no branch; the panel shows the real branch.
+    workspace.server = { environment: server.environment, branch: server.branch }
+    workspace.where = `${server.environment} ${path}`
+    if (!host.repo) return { ...snapshot, workspace, problem: `${path} on ${server.environment} has no origin remote, so Entire can't tell which repository it is.` }
+    if (!safeRef(host.branch)) return { ...snapshot, workspace, problem: `${path} on ${server.environment} is on no branch Entire can read.` }
+  } else {
+    workspace.where = host.kind === 'wsl' ? `WSL ${host.distro} ${host.path}` : path
   }
-  const host = workspaceHost(path)
-  workspace.where = host.kind === 'wsl' ? `WSL ${host.distro} ${host.path}` : path
 
   const version = await runStep(host, VERSION, signal)
   if (!version.ok) return { ...snapshot, workspace, steps: [version.step] }
@@ -81,24 +91,51 @@ export async function collectSnapshot(orca, { signal } = {}) {
   if (data.trail) {
     const found = findings.ok ? findings.value : null
     const base = safeRef(found?.trail?.base)
-    data.trail = trailSummary(data.trail, { findings: found, diff: base ? await diffStat(host, base, { signal }) : null })
+    const diff = base && host.kind !== 'server' ? await diffStat(host, base, { signal }) : null
+    data.trail = trailSummary(data.trail, { findings: found, diff })
   }
   return { ...snapshot, workspace, steps: [version.step, ...results.map((result) => result.step)], data }
 }
 
-async function runStep(host, { key, label, args, optional = false, parse, summarize = (value) => value }, signal) {
+function unresolved(context, via, candidates, unreachable) {
+  const name = context.branch ? `${context.displayName} on ${context.branch}` : context.displayName
+  const offline = unreachable.length > 0 ? ` (couldn't ask ${unreachable.join('; ')})` : ''
+  if (via === 'server' && candidates.length > 1) {
+    // Orca names only the repo of a paired server's workspace, so its worktrees look alike.
+    return `${name}: ${candidates.length} workspaces of this repository match on paired servers, and Orca doesn't tell plugins which one is focused.`
+  }
+  if (candidates.length > 0) {
+    // Without a terminal, only branch and name identify the workspace, and many repos share "main".
+    return `${name}: ${candidates.length} workspaces match it. Open a terminal in it and try again.`
+  }
+  return `${name}: no workspace matches it${offline}. Open a terminal in it and try again.`
+}
+
+async function runStep(host, { key, label, args, byRepo = false, optional = false, parse, summarize = (value) => value }, signal) {
   const step = { key, label, optional, ok: false }
+  if (host.kind === 'server' && key !== 'version') {
+    // On a paired server only Entire's server is in reach; say so instead of failing.
+    if (!byRepo) return { ok: false, step: { ...step, optional: true, text: `only readable on ${host.environment}` } }
+    args = [...args, '--repo', host.repo, '--branch', host.branch]
+  }
   let result
   try {
     result = await runEntire(host, args, { signal })
   } catch (error) {
     return { ok: false, step: { ...step, text: error.message } }
   }
-  if (result.code !== 0) return { ok: false, step: { ...step, text: failureLine(result), ms: result.ms } }
+  if (result.code !== 0) return { ok: false, step: { ...step, text: explainFailure(host, result), ms: result.ms } }
   try {
     const value = parse(result.stdout)
     return { ok: true, value, step: { ...step, ok: true, text: summarize(value), ms: result.ms } }
   } catch {
     return { ok: false, step: { ...step, text: `unexpected output: ${result.stdout.slice(0, 120)}`, ms: result.ms } }
   }
+}
+
+// Entire answers a repository it doesn't track, or this desktop's login can't see, with a bare 404.
+function explainFailure(host, result) {
+  const line = failureLine(result)
+  if (host.kind === 'server' && /repository not found/i.test(line)) return 'repository not on Entire for this computer’s login'
+  return line
 }

@@ -631,10 +631,13 @@
           else if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), 'Read from Entire ' + new Date(entry.at).toLocaleString()))
           add(heading, refreshButton())
           var where = entry && entry.workspace.where
+          // Orca gives a paired server's workspace no branch; the worker reads it from the server.
+          var server = entry && entry.workspace.server
+          var branch = context.branch || (server && server.branch) || ''
           return add(
             el('header'),
             heading,
-            context.branch !== context.displayName ? el('div', 'sub mono muted clip', context.branch) : null,
+            branch && branch !== context.displayName ? el('div', 'sub mono muted clip', branch) : null,
             where ? titled(el('div', 'sub muted clip', where), where) : null
           )
         }
@@ -828,7 +831,7 @@
           var value = entry.data.trail
           if (!value) {
             var s = step(entry, 'trail')
-            var missing = !s || /no discoverable|no trail/i.test(s.text)
+            var missing = !s || /no discoverable|no trail|not on Entire/i.test(s.text)
             return titled(el('div', missing ? 'empty' : 'empty bad', missing ? 'No trail for this branch.' : s.text), s && s.text)
           }
           var body = add(el('div'), changeCard(value))
@@ -866,6 +869,14 @@
             add(body, titled(row(mark, el('div', 'clip', s.label), el('div', 'meta clip', s.text), s.ok ? el('span', 'end', s.ms + ' ms') : null), s.text))
           })
           return body
+        }
+
+        // Why a step's data is missing: an error, or (optional) out of the worker's reach, such as a
+        // paired server's checkout.
+        function unread(s) {
+          if (!s) return el('div', 'empty bad')
+          if (!s.optional) return el('div', 'empty bad', s.text)
+          return el('div', 'empty', sentence(s.text) + ". The plugin can't run Entire there yet.")
         }
 
         function blank(title, text) {
@@ -918,11 +929,11 @@
 
           var active = (status && status.active_sessions) || []
           if (active.length) add(root, section('sessions', 'Sessions', String(active.length), sessions(status), true))
-          else if (!status) add(root, el('div', 'empty bad', (step(entry, 'status') || {}).text))
+          else if (!status) add(root, unread(step(entry, 'status')))
           var value = entry.data.trail
           add(root, section('trail', value && value.number ? 'Trail #' + value.number : 'Trail', trailBadge(value), trail(entry), true))
           var list = entry.data.checkpoints
-          add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : el('div', 'empty bad', (step(entry, 'checkpoints') || {}).text), false))
+          add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : unread(step(entry, 'checkpoints')), false))
           var bad = failing(entry)
           add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer())
         }
