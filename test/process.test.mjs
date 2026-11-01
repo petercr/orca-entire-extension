@@ -8,6 +8,11 @@ test('Windows CLIs get APPDATA and LOCALAPPDATA derived from USERPROFILE', () =>
   assert.equal(env.LOCALAPPDATA, 'C:\\Users\\me\\AppData\\Local')
 })
 
+test('Windows OpenSSH gets ProgramData from the system drive', () => {
+  assert.equal(desktopEnv({ USERPROFILE: 'D:\\Users\\me', SYSTEMDRIVE: 'D:' }, 'win32').ProgramData, 'D:\\ProgramData')
+  assert.equal(desktopEnv({ USERPROFILE: 'C:\\Users\\me' }, 'win32').ProgramData, 'C:\\ProgramData')
+})
+
 test('values already in the env win', () => {
   assert.equal(desktopEnv({ USERPROFILE: 'C:\\Users\\me', APPDATA: 'D:\\data' }, 'win32').APPDATA, 'D:\\data')
 })
