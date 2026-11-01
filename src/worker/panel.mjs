@@ -3,7 +3,7 @@
 // each snapshot into the panel file, and the panel picks the entry for the focused workspace.
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile, rename, writeFile } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { join, win32 } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { reportLines } from './doctor.mjs'
 
@@ -16,8 +16,10 @@ const DATA = /(<script id="entire-data" type="application\/json">)([\s\S]*?)(<\/
 const MAX_WORKSPACES = 10
 
 // Orca hashes an installed copy (plugins\<publisher.id>\<content hash>) and refuses it once a byte
-// changes, so the worker writes the panel only in a development folder.
+// changes, so the worker writes the panel only in a development folder. path.win32 splits on both
+// separators, so this reads Windows and POSIX roots the same on any platform.
 export function isInstalledCopy(root) {
+  const { basename, dirname } = win32
   const dir = root.replace(/[\\/]+$/, '')
   return /^[0-9a-f]{32,64}$/i.test(basename(dir)) && basename(dirname(dirname(dir))).toLowerCase() === 'plugins'
 }
