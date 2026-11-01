@@ -6,16 +6,14 @@ import { desktopEnv } from './process.mjs'
 // Orca reaches a paired server's orcad through an SSH tunnel to one of its saved SSH targets. The CLI
 // names the target's id only; the address lives in Orca's profile database, which this reads read-only.
 // With the target's key in ssh-agent, the worker runs Entire and git in the server's checkout over SSH.
-const known = new Map()
-
-export async function serverSshTarget(environment, { signal } = {}) {
-  if (known.has(environment)) return known.get(environment)
-  const { environment: saved } = await orcaCli(['environment', 'show', '--environment', environment], { signal })
+// Read on every snapshot, not cached: the worker runs until Orca quits, and the user can edit the target
+// or re-pair the server meanwhile. It costs one CLI call beside the several a server refresh makes.
+export async function serverSshTarget(environment, { signal, showEnvironment = orcaCli, savedTargets = orcaSshTargets } = {}) {
+  const { environment: saved } = await showEnvironment(['environment', 'show', '--environment', environment], { signal })
   const id = saved?.orcadDeployment?.sshTargetId
   if (!id) throw new Error(`Orca has no SSH target for ${environment}`)
-  const target = sshTarget(await orcaSshTargets(), id)
+  const target = sshTarget(await savedTargets(), id)
   if (!target) throw new Error(`Orca's SSH target for ${environment} has no usable address`)
-  known.set(environment, target)
   return target
 }
 

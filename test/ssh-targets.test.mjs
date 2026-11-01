@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sshTarget } from '../src/worker/ssh-targets.mjs'
+import { serverSshTarget, sshTarget } from '../src/worker/ssh-targets.mjs'
 
 const saved = { id: 'ssh-1', label: 'Endo VPS Server', configHost: '203.0.113.10', host: '203.0.113.10', port: 22, username: 'ubuntu', source: 'manual' }
 
@@ -27,4 +27,20 @@ test('addresses that would read as ssh options, or are malformed, are refused', 
   ]) {
     assert.equal(sshTarget([{ ...saved, ...change }], 'ssh-1'), null, JSON.stringify(change))
   }
+})
+
+test('every lookup rereads Orca, so an edited target or a re-paired server takes effect', async () => {
+  let targetId = 'ssh-1'
+  let targets = [saved]
+  const showEnvironment = async () => ({ environment: { orcadDeployment: { sshTargetId: targetId } } })
+  const savedTargets = async () => targets
+  const lookup = () => serverSshTarget('VPS', { showEnvironment, savedTargets })
+  assert.equal((await lookup()).host, '203.0.113.10')
+  targets = [{ ...saved, configHost: '', host: '203.0.113.20' }]
+  assert.equal((await lookup()).host, '203.0.113.20')
+  targetId = 'ssh-2'
+  targets = [...targets, { ...saved, id: 'ssh-2', configHost: '198.51.100.7' }]
+  assert.equal((await lookup()).host, '198.51.100.7')
+  targetId = undefined
+  await assert.rejects(lookup(), /Orca has no SSH target for VPS/)
 })
