@@ -75,6 +75,11 @@ test("a paired server's checkout runs Entire and git over SSH, every word quoted
   assert.match(gitCommand(host.remote, ['diff', '--shortstat', 'origin/main...HEAD']).args.at(-1), / 'git' 'diff' '--shortstat' 'origin\/main\.\.\.HEAD'$/)
 })
 
+test("without a saved port ssh gets no -p, so an ~/.ssh/config alias's Port applies", () => {
+  const host = serverHost({ environment: 'VPS', path: '/r', repoUrl: 'git@github.com:a/b.git', branch: 'main', target: { host: 'vps', port: null, user: null } })
+  assert.deepEqual(gitCommand(host.remote, ['status']).args.slice(0, -1), ['-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '--', 'vps'])
+})
+
 test('without an SSH target the server host says why', () => {
   const host = serverHost({ environment: 'VPS', path: '/r', repoUrl: 'git@github.com:a/b.git', branch: 'main', remoteProblem: 'Orca has no SSH target for VPS' })
   assert.equal(host.remote, null)

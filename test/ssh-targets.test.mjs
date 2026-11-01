@@ -11,7 +11,9 @@ test("an environment's SSH target is found by id", () => {
 })
 
 test('an ~/.ssh/config alias wins over the resolved host, so ssh applies that config', () => {
-  assert.deepEqual(sshTarget([{ ...saved, configHost: 'vps', host: '10.0.0.5', username: '', port: undefined }], 'ssh-1'), { host: 'vps', port: 22, user: null })
+  // No saved port stays null, so the alias's own Port applies.
+  assert.deepEqual(sshTarget([{ ...saved, configHost: 'vps', host: '10.0.0.5', username: '', port: undefined }], 'ssh-1'), { host: 'vps', port: null, user: null })
+  assert.deepEqual(sshTarget([{ ...saved, configHost: 'vps', port: null }], 'ssh-1'), { host: 'vps', port: null, user: 'ubuntu' })
 })
 
 test('addresses that would read as ssh options, or are malformed, are refused', () => {

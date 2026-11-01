@@ -23,10 +23,11 @@ export function sshTarget(targets, id) {
   if (!saved) return null
   // configHost is the ~/.ssh/config alias when the target came from there, so ssh applies that config.
   const host = saved.configHost || saved.host
-  const port = saved.port ?? 22
+  // No port stays null, so ssh takes the alias's Port from its config (or 22): `-p` would override it.
+  const port = saved.port ?? null
   const user = saved.username || null
   if (typeof host !== 'string' || !/^[A-Za-z0-9_][\w.:-]{0,252}$/.test(host)) return null
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return null
+  if (port !== null && (!Number.isInteger(port) || port < 1 || port > 65535)) return null
   if (user !== null && (typeof user !== 'string' || !/^[A-Za-z0-9_][\w.-]{0,63}$/.test(user))) return null
   return { host, port, user }
 }

@@ -38,7 +38,12 @@ function sshCommand(host, argv) {
   const remote = ['bash', '-lc', 'cd -- "$1" && shift && exec "$@"', 'bash', host.path, ...argv].map(shellQuote).join(' ')
   return {
     command: 'ssh',
-    args: ['-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8', '-p', String(port), '--', user ? `${user}@${address}` : address, remote]
+    args: [
+      '-n', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8',
+      // Only a port Orca saved: an ~/.ssh/config alias may set its own, which `-p` would override.
+      ...(port === null ? [] : ['-p', String(port)]),
+      '--', user ? `${user}@${address}` : address, remote
+    ]
   }
 }
 
