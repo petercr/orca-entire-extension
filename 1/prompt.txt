@@ -1,0 +1,13 @@
+ok i turned on trails for this repo. how do i set up the code review trail for this repo
+
+---
+
+no theres a new setting where you can add what kind of code review you want done on entire's cloud for each repo
+
+---
+
+ok i did it
+
+---
+
+pr merged start ssh work here
