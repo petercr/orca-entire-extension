@@ -1,0 +1,5 @@
+ok lets do some ui updates to it now. with the gates card, it would be nice to have the approvals, checks, findings, be able to drop down and show more details about them.
+
+---
+
+ok looks good lets branch commit and pr
