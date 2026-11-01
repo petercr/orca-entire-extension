@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M6BXZ95DM3VQEWYNTFS4AMB7",
+  "strategy": "manual-commit",
+  "branch": "vps-workspaces",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "CLAUDE.md",
+    "docs/PLAN.md",
+    "panel/template.html",
+    "scripts/orca-harness/launch.mjs",
+    "scripts/orca-harness/worker.mjs",
+    "src/worker/doctor.mjs",
+    "src/worker/hosts.mjs",
+    "src/worker/orca-cli.mjs",
+    "src/worker/panel.mjs",
+    "src/worker/snapshot.mjs",
+    "src/worker/workspace.mjs",
+    "test/hosts.test.mjs",
+    "test/panel.test.mjs",
+    "test/workspace.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 164,
+    "cache_creation_tokens": 167244,
+    "cache_read_tokens": 9384267,
+    "output_tokens": 52579,
+    "api_call_count": 80
+  },
+  "redaction": {
+    "replacements": 2,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 2,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

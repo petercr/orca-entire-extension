@@ -1,0 +1,5 @@
+ok i have installed agent-desktop and the skills to use it here. lets keep working on our orca entire extention. this sess lets try to get it working on remote vps connections as well. it does not load on those
+
+---
+
+ok great it now works on the vps server too!! lets branch commit and push changes
