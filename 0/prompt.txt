@@ -1,0 +1,1 @@
+ok so i started this project as This project as just an entire repo but I'd think I want to backtrack and set it up as a GitHub repo with an entire fork. that way we can easily get issues and ci builds.
