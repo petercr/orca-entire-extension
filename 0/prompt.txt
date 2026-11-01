@@ -1,0 +1,6 @@
+Code review failed on trail, feedback: 
+### Medium finding
+
+**Location:** `src/worker/ssh-targets.mjs:12`
+
+After a successful lookup, changing the saved SSH target’s address or re-pairing the environment leaves every subsequent refresh using the original target. `snapshot.mjs:80` repeats this lookup, but `main.mjs:92-103` keeps the worker alive indefinitely, so status, checkpoints and diff reads keep contacting the old server until the worker restarts. Revalidate the target on refresh or invalidate the cache when its configuration changes.
