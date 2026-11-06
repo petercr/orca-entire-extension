@@ -67,6 +67,15 @@ export function createPanelData({ collect, readContext, now = Date.now }) {
     return reading
   }
 
+  // A read that couldn't find the focused workspace (its lookup failed) added nothing, so answering
+  // with the data would pass the old data off as this read's. Fail instead: the panel shows why and
+  // retries on its schedule.
+  async function readFresh() {
+    const snapshot = await readNow()
+    if (!snapshot.workspace) throw new Error(snapshot.problem ?? 'Entire was read for no workspace')
+    return data
+  }
+
   async function shown() {
     const context = await readContext()
     return context ? findShown(data, context) : null
@@ -88,15 +97,13 @@ export function createPanelData({ collect, readContext, now = Date.now }) {
         const joined = await reading.catch(() => null)
         if (joined && (await shown())?.at === joined.at) return data
       }
-      await readNow()
-      return data
+      return readFresh()
     },
     // Reads Entire with a read that starts now: one already running may have begun before what the
     // caller wants to see, such as an agent's last checkpoint, so it waits for that one and reads again.
     async readAgain() {
       if (reading) await reading.catch(() => null)
-      await readNow()
-      return data
+      return readFresh()
     }
   }
 }

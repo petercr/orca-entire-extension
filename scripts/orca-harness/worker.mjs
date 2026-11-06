@@ -51,7 +51,10 @@ if (scenario === 'local-entire') {
   await commands.get('doctor')(undefined, { signal: new AbortController().signal })
   // Then what the panel asks for: the data the command just read, fresh enough not to read again.
   const started = Date.now()
-  const data = await handlers.get('entire.read')({ maxAgeMs: 60_000 }, { signal: new AbortController().signal })
+  const data = await handlers.get('entire.read')({ maxAgeMs: 60_000 }, { signal: new AbortController().signal }).catch((error) => {
+    console.log(`[panel] entire.read failed, which the panel shows and retries in 5 minutes: ${error.message}`)
+    process.exit()
+  })
   const size = JSON.stringify(data).length
   console.log(`[panel] entire.read answered in ${Date.now() - started} ms: ${data?.workspaces.length ?? 0} workspace(s), ${size} characters (Orca's limit is 1 MiB)`)
 }

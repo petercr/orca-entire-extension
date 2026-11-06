@@ -135,6 +135,16 @@ test('a read after an agent finishes starts after it, not joining one already ru
   await after
 })
 
+test("a read that couldn't find the workspace fails, rather than answering with the old data", async () => {
+  const panel = createPanelData({
+    collect: async () => ({ at: '2026-11-06T12:00:00Z', workspace: null, problem: 'Workspace lookup failed: boom', steps: [], data: {} }),
+    readContext: async () => focusOn('api')
+  })
+  await assert.rejects(panel.read({ maxAgeMs: 60_000 }), /Workspace lookup failed: boom/)
+  await assert.rejects(panel.readAgain(), /Workspace lookup failed: boom/)
+  assert.equal(panel.data, null)
+})
+
 test('a snapshot a command read joins the data', () => {
   const { panel } = harness(() => focusOn('api'))
   assert.equal(panel.data, null)
@@ -262,6 +272,18 @@ test('the panel retries a failed read after 5 minutes, and data the worker posts
   requests.shift().resolve({ workspaces: [entryOn('a', at())] })
   await settle()
   assert.equal(panel.readError(), null)
+})
+
+test('with nothing to show, the panel retries a failed first read after 5 minutes', async () => {
+  const { panel, requests, tick } = panelAsks()
+  panel.show(onBranch('a'))
+  requests.shift().reject({ code: 'handler_error', message: 'Workspace lookup failed: boom' })
+  await settle()
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 0, 'not straight away')
+  tick(5 * 60_000)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 1, 'retried')
 })
 
 // The panel's own text for the copy buttons, built from the functions it uses.
