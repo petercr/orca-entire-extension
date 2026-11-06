@@ -65,8 +65,9 @@ approval again when the manifest asks for more.
 - The command palette drops a command's result; only the Run button in Settings → Plugins shows it
   (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.
 - The panel drives the reads (host API 1.2, Orca 1.4.246): on mount and on a workspace or branch
-  switch it asks `entire.read` with `maxAgeMs` of a minute, every 5 minutes with 5 minutes, and ↻
-  with 0. The worker reads Entire only when its entry for the focused workspace is older, and runs
+  switch it asks `entire.read` with `maxAgeMs` of a minute, every 5 minutes with 5 minutes (which
+  also retries a failed read), and ↻ with 0. Two branches of one checkout share a path, so one's
+  read replaces the other's entry; the panel asks again when the focused entry goes missing. The worker reads Entire only when its entry for the focused workspace is older, and runs
   one read at a time. After a read the panel didn't ask for (a command, an agent finishing) the
   worker posts `entire.changed` and the panel asks `entire.data`. A post carries at most 256 KiB and
   an answer 1 MiB, so data never goes in a post, and `mergeEntry` drops the oldest workspaces past

@@ -576,6 +576,8 @@
         var refreshing = false
         var readError = null
         var focusedKey = null
+        // The workspace the panel last asked about, and when.
+        var asked = { key: null, at: 0 }
 
         function el(tag, className, text) {
           var node = document.createElement(tag)
@@ -685,6 +687,7 @@
         // younger than maxAgeMs (0 always reads). Orca starts the worker if it isn't running. render
         // calls this, so it leaves the first rerender to its caller.
         function ask(maxAgeMs, manual) {
+          asked = { key: focusedKey, at: Date.now() }
           if (!orca.plugin || !orca.host.has('plugin.request')) {
             readError = { code: 'unknown_method', message: 'this Orca has no plugin.request. Entire for Orca needs Orca 1.4.246 or later.' }
             return
@@ -715,6 +718,8 @@
           orca.plugin.request('entire.data', {}).then(
             function (data) {
               DATA = data
+              // The worker just read Entire, so an earlier failure no longer describes it.
+              readError = null
               rerender()
             },
             function () {}
@@ -1224,7 +1229,10 @@
 
         // When the panel mounts and when focus moves to another workspace or branch, it asks the worker for
         // data, which reads Entire only if what it has for the workspace is over a minute old. The
-        // minute's rerender asks again once the shown entry is 5 minutes old.
+        // minute's rerender asks again once the shown entry is 5 minutes old, and retries a failed read
+        // as often. It also asks when the entry is gone and nothing was asked about this workspace since
+        // focus came here: another branch of the same checkout shares its path, so a read of that
+        // branch still running at the switch replaces this branch's entry when it lands.
         function noteFocus(context, entry) {
           var key = context
             ? JSON.stringify([
@@ -1242,8 +1250,14 @@
             focusedKey = key
             readError = null
             if (key && !(age < SWITCH_FRESH_MS)) ask(SWITCH_FRESH_MS)
-          } else if (key && entry && reads === 0 && !readError && !(age < AUTO_REFRESH_MS)) {
-            ask(AUTO_REFRESH_MS)
+            return
+          }
+          if (!key || reads > 0) return
+          var due = !(Date.now() - asked.at < AUTO_REFRESH_MS)
+          if (entry) {
+            if (due && !(age < AUTO_REFRESH_MS)) ask(AUTO_REFRESH_MS)
+          } else if (asked.key !== key || (readError && due)) {
+            ask(SWITCH_FRESH_MS)
           }
         }
 

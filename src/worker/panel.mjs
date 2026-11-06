@@ -90,6 +90,13 @@ export function createPanelData({ collect, readContext, now = Date.now }) {
       }
       await readNow()
       return data
+    },
+    // Reads Entire with a read that starts now: one already running may have begun before what the
+    // caller wants to see, such as an agent's last checkpoint, so it waits for that one and reads again.
+    async readAgain() {
+      if (reading) await reading.catch(() => null)
+      await readNow()
+      return data
     }
   }
 }

@@ -68,7 +68,7 @@ export default function activate(orca) {
     clearTimeout(timer)
     timer = setTimeout(() => {
       timer = null
-      panel.read().catch((error) => console.error(`Refresh failed: ${error.message}`))
+      panel.readAgain().catch((error) => console.error(`Refresh failed: ${error.message}`))
     }, AGENT_SETTLE_MS)
   })
 }

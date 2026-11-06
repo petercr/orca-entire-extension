@@ -120,6 +120,21 @@ test('requests that arrive during a read share it, unless focus moved meanwhile'
   )
 })
 
+test('a read after an agent finishes starts after it, not joining one already running', async () => {
+  const { panel, reads, finish } = harness(() => focusOn('api'))
+  const early = panel.read()
+  await settle()
+  const after = panel.readAgain()
+  await settle()
+  assert.equal(reads.length, 1, 'waits for the running read')
+  finish()
+  await early
+  await settle()
+  assert.equal(reads.length, 1, 'then reads again')
+  finish()
+  await after
+})
+
 test('a snapshot a command read joins the data', () => {
   const { panel } = harness(() => focusOn('api'))
   assert.equal(panel.data, null)
@@ -174,6 +189,79 @@ test("a paired server's workspace is told apart by its server, not by its path a
   assert.deepEqual(data.workspaces.map((e) => e.at), ['third', 'second'])
   // readContext names it by its repo with no branch, which is how the panel finds it.
   assert.equal(findShown({ workspaces: [data.workspaces[0]] }, { displayName: 'leadgen', branch: '', terminals: [] }).at, 'third')
+})
+
+// The panel's own asking, run against a fake orca and clock. show(context) is what each render does.
+function panelAsks() {
+  let clock = Date.parse('2026-11-05T12:00:00Z')
+  const requests = []
+  const orca = {
+    plugin: { request: (name, input) => new Promise((resolve, reject) => requests.push({ name, input, resolve, reject })) },
+    host: { has: () => true }
+  }
+  const panel = new Function(
+    'orca',
+    'Date',
+    'rerender',
+    `var DATA = null, reads = 0, refreshing = false, readError = null, focusedKey = null, asked = { key: null, at: 0 }
+    var SWITCH_FRESH_MS = 60000, AUTO_REFRESH_MS = 5 * 60000, READ_TIMEOUT_MS = 100000
+    ${['ask', 'fetchData', 'noteFocus', 'findEntry'].map(panelFunction).join('\n')}
+    return {
+      show: function (context) { noteFocus(context, findEntry(context)) },
+      fetchData: fetchData,
+      readError: function () { return readError }
+    }`
+  )(orca, { now: () => clock, parse: Date.parse }, () => {})
+  const at = () => new Date(clock).toISOString()
+  return { panel, requests, at, tick: (ms) => (clock += ms) }
+}
+
+const onBranch = (branch) => ({ displayName: 'app', branch, terminals: [{ id: 't1' }] })
+const entryOn = (branch, at) => ({ at, workspace: { name: 'app', branch, path: 'C:\\app', terminals: ['t1'] }, data: {} })
+
+test("the panel asks again when a read of the checkout's other branch replaced the focused branch's entry", async () => {
+  const { panel, requests, at, tick } = panelAsks()
+  panel.show(onBranch('a'))
+  requests.shift().resolve({ workspaces: [entryOn('a', at())] })
+  await settle()
+  panel.show(onBranch('b'))
+  const readOfB = requests.shift()
+  tick(10_000)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 0, "a's entry is fresh: no request")
+  // b's read lands and, sharing the path, replaces a's entry.
+  readOfB.resolve({ workspaces: [entryOn('b', at())] })
+  await settle()
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 1, 'a asks again')
+  // Still nothing for a after asking: no request on every render.
+  requests.shift().resolve({ workspaces: [entryOn('b', at())] })
+  await settle()
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 0)
+})
+
+test('the panel retries a failed read after 5 minutes, and data the worker posts clears the failure', async () => {
+  const { panel, requests, at, tick } = panelAsks()
+  panel.show(onBranch('a'))
+  requests.shift().resolve({ workspaces: [entryOn('a', at())] })
+  await settle()
+  tick(5 * 60_000)
+  panel.show(onBranch('a'))
+  requests.shift().reject({ code: 'timeout', message: 'slow' })
+  await settle()
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 0, 'not straight away')
+  tick(5 * 60_000)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 1, 'retried')
+  requests.shift().reject({ code: 'timeout', message: 'slow' })
+  await settle()
+  assert.equal(panel.readError().code, 'timeout')
+  panel.fetchData()
+  requests.shift().resolve({ workspaces: [entryOn('a', at())] })
+  await settle()
+  assert.equal(panel.readError(), null)
 })
 
 // The panel's own text for the copy buttons, built from the functions it uses.
