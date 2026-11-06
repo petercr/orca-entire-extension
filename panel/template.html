@@ -79,7 +79,8 @@
         flex: none;
         font-size: 11px;
       }
-      .refresh {
+      .refresh,
+      .copy {
         flex: none;
         display: inline-flex;
         align-items: center;
@@ -94,9 +95,23 @@
         color: var(--muted);
         cursor: pointer;
       }
-      .refresh:hover:not(:disabled) {
+      .refresh:hover:not(:disabled),
+      .copy:hover {
         background: var(--hover);
         color: var(--fg);
+      }
+      .copy {
+        width: 20px;
+        height: 20px;
+        margin: -2px -4px -2px 0;
+      }
+      .copy svg {
+        width: 13px;
+        height: 13px;
+      }
+      .copy.ok,
+      .copy.bad {
+        color: var(--tone);
       }
       .refresh:disabled {
         cursor: default;
@@ -979,9 +994,84 @@
           return add(el('div'), el('div', null, line), detail.allowBehind ? factLine(['Behind is fine while it still merges cleanly']) : null)
         }
 
+        // Orca's plugin frames get no permissions, so the async Clipboard API is refused, but
+        // execCommand('copy') during a click still works (plugin-frame-session-policies.ts in Orca).
+        function copyText(text) {
+          var area = el('textarea')
+          area.value = text
+          area.setAttribute('readonly', '')
+          area.style.position = 'fixed'
+          area.style.top = '-1000px'
+          area.style.opacity = '0'
+          document.body.appendChild(area)
+          area.select()
+          var copied = false
+          try {
+            copied = document.execCommand('copy')
+          } catch (_) {}
+          document.body.removeChild(area)
+          return copied
+        }
+
+        var COPY_ICON = ['M8 8h12v12H8z', 'M16 8V4H4v12h4']
+        var COPIED_ICON = ['m5 12 5 5L20 7']
+        var COPY_FAILED_ICON = ['M18 6 6 18', 'M6 6l12 12']
+
+        // text is a function so a copy reads what the card shows at the moment of the click.
+        function copyButton(label, text) {
+          var button = titled(el('button', 'copy'), label)
+          button.type = 'button'
+          button.setAttribute('aria-label', label)
+          button.appendChild(icon(COPY_ICON))
+          var timer = null
+          button.addEventListener('click', function (event) {
+            // Inside a <summary>, the click would also open or close the finding.
+            event.preventDefault()
+            event.stopPropagation()
+            var copied = copyText(text())
+            button.focus()
+            button.className = 'copy ' + (copied ? 'ok' : 'bad')
+            button.title = copied ? 'Copied' : "Couldn't copy"
+            button.replaceChildren(icon(copied ? COPIED_ICON : COPY_FAILED_ICON))
+            clearTimeout(timer)
+            timer = setTimeout(function () {
+              button.className = 'copy'
+              button.title = label
+              button.replaceChildren(icon(COPY_ICON))
+            }, 1500)
+          })
+          return button
+        }
+
+        function findingWhere(finding) {
+          var range = finding.line ? ':' + finding.line + (finding.endLine && finding.endLine !== finding.line ? '–' + finding.endLine : '') : ''
+          return finding.file ? finding.file + range : null
+        }
+
+        // A finding as plain text, to paste into an agent's prompt or an issue.
+        function findingText(finding) {
+          var lines = [(finding.severity ? '[' + String(finding.severity).toUpperCase() + '] ' : '') + (finding.title || 'Finding')]
+          var where = findingWhere(finding)
+          if (where) lines.push(where)
+          var state = [finding.status && finding.status !== 'open' ? sentence(finding.status) : null, finding.stale ? 'found on an earlier version of the code' : null].filter(Boolean).join(', ')
+          if (state) lines.push('Status: ' + state)
+          if (finding.body && finding.body !== finding.title) lines.push('', finding.body)
+          if (finding.reason) lines.push('', sentence(finding.status || 'note') + ': ' + finding.reason)
+          return lines.join('\n')
+        }
+
+        function findingsText(items) {
+          return items.map(findingText).join('\n\n---\n\n')
+        }
+
         function findingsList(findings) {
           var counts = [findings.open + ' open', findings.resolved ? findings.resolved + ' resolved' : null, findings.dismissed ? findings.dismissed + ' dismissed' : null]
-          var body = add(el('div'), add(el('div', 'spread heading-row'), el('span', 'card-title', 'Findings'), el('span', 'meta', counts.filter(Boolean).join(' · '))))
+          var copyAll = findings.items.length
+            ? copyButton(findings.items.length === 1 ? 'Copy the finding' : 'Copy all ' + findings.items.length + ' findings', function () {
+                return findingsText(findings.items)
+              })
+            : null
+          var body = add(el('div'), add(el('div', 'spread heading-row'), el('span', 'card-title', 'Findings'), add(el('div', 'tags'), el('span', 'meta', counts.filter(Boolean).join(' · ')), copyAll)))
           if (!findings.items.length) return add(body, el('div', 'empty', 'No findings on this branch.'))
           findings.items.forEach(function (finding) {
             add(body, findingCard(finding))
@@ -996,11 +1086,13 @@
           var status = finding.status && finding.status !== 'open' ? el('span', 'pill ' + (finding.status === 'resolved' ? 'ok' : ''), sentence(finding.status)) : null
           var stale = finding.stale ? titled(el('span', 'pill', 'Stale'), 'Found on an earlier version of the code') : null
           var confidence = typeof finding.confidence === 'number' ? titled(el('span', 'meta', Math.round(finding.confidence * 100) + '%'), 'Confidence') : null
-          var range = finding.line ? ':' + finding.line + (finding.endLine && finding.endLine !== finding.line ? '–' + finding.endLine : '') : ''
-          var where = finding.file ? finding.file + range : null
+          var where = findingWhere(finding)
+          var copy = copyButton('Copy finding', function () {
+            return findingText(finding)
+          })
           var summary = add(
             el('summary'),
-            add(el('div', 'spread'), add(el('div', 'tags'), severity, status, stale), confidence),
+            add(el('div', 'spread'), add(el('div', 'tags'), severity, status, stale), add(el('div', 'tags'), confidence, copy)),
             el('div', 'finding-title clamp', finding.title || 'Finding'),
             where ? titled(el('div', 'meta mono clip', where), where) : null
           )

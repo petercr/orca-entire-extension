@@ -158,6 +158,21 @@ test("shownAt reads the panel's entry time, or null without one", async () => {
   assert.equal(shownAt({ ...context, branch: 'feature' }, root), null)
 })
 
+// The panel's own text for the copy buttons, built from the functions it uses.
+const panelFunction = (name) => new RegExp(`^ {8}function ${name}\\([^)]*\\) \\{[\\s\\S]*?^ {8}\\}$`, 'm').exec(template)[0]
+const findingsText = new Function(`${['words', 'sentence', 'findingWhere', 'findingText', 'findingsText'].map(panelFunction).join('\n')}\nreturn findingsText`)()
+
+test('a copied finding carries its severity, place, status, text and reason', () => {
+  const open = { severity: 'high', title: 'Null deref', file: 'src/a.mjs', line: 4, endLine: 9, body: 'x can be null here.' }
+  const dismissed = { severity: 'low', title: 'Naming', status: 'dismissed', stale: true, body: 'Naming', reason: 'Matches the API.' }
+  assert.equal(findingsText([open]), '[HIGH] Null deref\nsrc/a.mjs:4–9\n\nx can be null here.')
+  assert.equal(
+    findingsText([open, dismissed]),
+    '[HIGH] Null deref\nsrc/a.mjs:4–9\n\nx can be null here.\n\n---\n\n[LOW] Naming\nStatus: Dismissed, found on an earlier version of the code\n\nDismissed: Matches the API.'
+  )
+  assert.equal(findingsText([{}]), 'Finding')
+})
+
 test("a paired server's workspace is told apart by its server, not by its path alone", () => {
   const onServer = (environment, at) => ({ ...entry('leadgen', '/home/ubuntu/leadgen', [], at), workspace: { name: 'leadgen', branch: '', path: '/home/ubuntu/leadgen', terminals: [], server: { environment, branch: 'main' } } })
   let data = mergeEntry(null, onServer('VPS one', 'first'))
