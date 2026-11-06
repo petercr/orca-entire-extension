@@ -8,6 +8,10 @@
   "description": "Entire trails, findings and checkpoints for your Orca workspaces.",
   "license": "MIT",
   "repository": "https://github.com/petercr/orca-entire-extension",
+  "cover": {
+    "path": "images/cover.jpg",
+    "alt": "A robot in a snorkel mask rides a smiling orca past the Golden Gate Bridge, beside the words Entire Extension for Orca ADE"
+  },
   "engines": { "orca": ">=1.4.246" },
   "pluginApi": 1,
   "main": "src/worker/main.mjs",
