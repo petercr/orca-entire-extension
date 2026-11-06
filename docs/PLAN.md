@@ -151,8 +151,10 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
   - [x] Say which platforms work: the README's table marks Windows, WSL and paired servers as tested,
         and macOS and Linux as untested. `orcaCliPath` expects Orca's CLI where Windows has it, and
         reading SSH targets is Windows-only. Trying macOS or Linux is still open.
-  - [ ] Optional listing images: a cover (16:10, at least 800×500) and up to six screenshots (at
-        least 1280×800) that show the real panel.
+  - [ ] Optional listing images: a cover (16:10, at least 800×500, at most 1024 KB) and up to six
+        screenshots (at least 1280×800, at most 1536 KB) that show the real panel. The cover is
+        `images/cover.jpg` (1506×941); screenshots are still to do. GitHub's social preview has no
+        API: upload it under the repo's Settings → General → Social preview.
   - [ ] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
         v0.1.0 && git push origin v0.1.0`, `gh repo edit petercr/orca-entire-extension --add-topic
         orca-plugin`, then check the listing page.
