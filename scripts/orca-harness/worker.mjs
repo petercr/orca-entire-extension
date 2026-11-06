@@ -25,8 +25,13 @@ if (scenario === 'local-entire') {
 } else {
   const { default: activate } = await load('main.mjs')
   const commands = new Map()
+  const handlers = new Map()
   activate({
-    api: { major: 1, minor: 0 },
+    api: { major: 1, minor: 2 },
+    panels: {
+      handle: (name, handler) => (handlers.set(name, handler), { dispose() {} }),
+      post: (event) => console.log(`[post to panel] ${event}`)
+    },
     host: {
       has: () => true,
       call: async (method, params) => {
@@ -44,4 +49,9 @@ if (scenario === 'local-entire') {
   })
   // The command logs its own report, which is what Orca shows under the plugin's Logs.
   await commands.get('doctor')(undefined, { signal: new AbortController().signal })
+  // Then what the panel asks for: the data the command just read, fresh enough not to read again.
+  const started = Date.now()
+  const data = await handlers.get('entire.read')({ maxAgeMs: 60_000 }, { signal: new AbortController().signal })
+  const size = JSON.stringify(data).length
+  console.log(`[panel] entire.read answered in ${Date.now() - started} ms: ${data?.workspaces.length ?? 0} workspace(s), ${size} characters (Orca's limit is 1 MiB)`)
 }

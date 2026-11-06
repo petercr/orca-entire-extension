@@ -3,11 +3,12 @@
   "manifestVersion": 2,
   "execution": "trusted-worker",
   "id": "entire",
-  "publisher": "petercr",
   "name": "Entire",
   "version": "0.0.1",
   "description": "Entire trails, findings and checkpoints for your Orca workspaces.",
-  "engines": { "orca": ">=1.4.245" },
+  "license": "MIT",
+  "repository": "https://github.com/petercr/orca-entire-extension",
+  "engines": { "orca": ">=1.4.246" },
   "pluginApi": 1,
   "main": "src/worker/main.mjs",
   "contributes": {
@@ -15,7 +16,7 @@
       { "id": "doctor", "title": "Entire: Check connection", "when": "workspace" },
       { "id": "refresh", "title": "Entire: Refresh panel", "when": "workspace" }
     ],
-    "panels": [{ "id": "entire", "title": "Entire", "icon": "layers", "entry": "panel/entire.html" }],
+    "panels": [{ "id": "entire", "title": "Entire", "icon": "layers", "entry": "panel/index.html" }],
     "events": [{ "on": "agent.status.changed" }]
   },
   "capabilities": [{ "kind": "workspace:read" }, { "kind": "notifications:show" }, { "kind": "agent:read" }]

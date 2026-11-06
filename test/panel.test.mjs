@@ -1,33 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { embedData, ensurePanel, findShown, isInstalledCopy, mergeEntry, readData, renderPanel, shownAlready, shownAt, updatePanel } from '../src/worker/panel.mjs'
-
-const TEMPLATE = '<p>panel</p><script id="entire-data" type="application/json">null</script><script>run()</script>'
+import { readFile } from 'node:fs/promises'
+import { createPanelData, findShown, mergeEntry } from '../src/worker/panel.mjs'
 
 const entry = (name, path, terminals = [], at = '2026-10-30T12:00:00Z') => ({
   at,
   workspace: { name, branch: 'main', path, terminals },
   data: {}
-})
-
-test('Entire text cannot close the data script', () => {
-  const html = renderPanel(TEMPLATE, { message: '</script><script>alert(1)</script> & $& \u2028' })
-  assert.equal(html.match(/<\/script>/g).length, 2)
-  assert.ok(html.includes('<script>run()</script>'))
-  assert.equal(readData(html).message, '</script><script>alert(1)</script> & $& \u2028')
-  assert.ok(!embedData({ a: '<>&' }).includes('<'))
-})
-
-test('a template without the data script is refused', () => {
-  assert.throws(() => renderPanel('<p>no data</p>', null), /entire-data/)
-})
-
-test('a broken or missing data block reads as no data', () => {
-  assert.equal(readData(''), null)
-  assert.equal(readData('<script id="entire-data" type="application/json">{oops</script>'), null)
 })
 
 test('a newer entry replaces the same workspace and the newest come first', () => {
@@ -57,66 +36,105 @@ test('the panel keeps at most 10 workspaces', () => {
   assert.equal(data.workspaces[0].workspace.name, 'w11')
 })
 
-test("Orca's installed copies are recognized, development folders are not", () => {
-  const hash = 'a'.repeat(64)
-  assert.ok(isInstalledCopy(`C:\\Users\\me\\AppData\\Roaming\\orca\\plugins\\petercr.entire\\${hash}\\`))
-  assert.ok(isInstalledCopy(`/home/me/.config/orca/plugins/petercr.entire/${hash.slice(0, 32)}`))
-  assert.ok(!isInstalledCopy('C:\\Users\\me\\Web Projects\\orca-entire-extension\\'))
-  assert.ok(!isInstalledCopy(`C:\\Users\\me\\plugins\\${hash}`))
+test("the oldest workspaces go when the answer would pass Orca's limit, never the newest", () => {
+  const big = (name) => ({ ...entry(name, `C:\\${name}`), data: { text: 'x'.repeat(400) } })
+  let data = null
+  for (const name of ['a', 'b', 'c']) data = mergeEntry(data, big(name), { maxChars: 1200 })
+  assert.deepEqual(
+    data.workspaces.map((e) => e.workspace.name),
+    ['c', 'b']
+  )
+  assert.equal(mergeEntry(null, { ...big('huge'), data: { text: 'x'.repeat(5000) } }, { maxChars: 1000 }).workspaces.length, 1)
 })
 
-test('overlapping refreshes both land in the panel', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
-  await mkdir(join(root, 'panel'))
-  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
-  await Promise.all([updatePanel(entry('api', 'C:\\api', ['t1']), { root }), updatePanel(entry('web', 'C:\\web', ['t2']), { root })])
-  const data = readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8'))
-  assert.deepEqual(data.workspaces.map((e) => e.workspace.name).sort(), ['api', 'web'])
+// A fake worker side: collect resolves when the test says so, readContext answers the focused workspace.
+function harness(context) {
+  const reads = []
+  let clock = Date.parse('2026-11-05T12:00:00Z')
+  const panel = createPanelData({
+    collect: () =>
+      new Promise((resolve) => {
+        const at = new Date(clock).toISOString()
+        const focused = context()
+        reads.push(() => resolve({ ...entry(focused.displayName, `C:\\${focused.displayName}`, focused.terminals.map((t) => t.id), at), steps: [] }))
+      }),
+    readContext: async () => context(),
+    now: () => clock
+  })
+  return { panel, reads, tick: (ms) => (clock += ms), finish: () => reads.shift()() }
+}
+
+const focusOn = (name) => ({ displayName: name, branch: 'main', terminals: [{ id: `t-${name}` }] })
+const settle = () => new Promise((resolve) => setImmediate(resolve))
+
+test("a request reads Entire only when the focused workspace's entry is older than it allows", async () => {
+  const { panel, reads, tick, finish } = harness(() => focusOn('api'))
+  const first = panel.read({ maxAgeMs: 60_000 })
+  await settle()
+  assert.equal(reads.length, 1)
+  finish()
+  assert.equal((await first).workspaces[0].workspace.name, 'api')
+
+  tick(30_000)
+  await panel.read({ maxAgeMs: 60_000 })
+  assert.equal(reads.length, 0, 'fresh enough: no read')
+
+  tick(40_000)
+  const stale = panel.read({ maxAgeMs: 60_000 })
+  await settle()
+  assert.equal(reads.length, 1, 'over a minute old: a read')
+  finish()
+  await stale
+
+  const always = panel.read({ maxAgeMs: 0 })
+  await settle()
+  assert.equal(reads.length, 1, '↻ always reads')
+  finish()
+  await always
 })
 
-test('the worker fills the panel from the template and keeps other workspaces', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
-  await mkdir(join(root, 'panel'))
-  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
-  assert.equal(await ensurePanel(root), true)
-  assert.equal(await ensurePanel(root), false)
-  assert.equal(readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8')), null)
+test('requests that arrive during a read share it, unless focus moved meanwhile', async () => {
+  let focused = focusOn('api')
+  const { panel, reads, finish } = harness(() => focused)
+  const first = panel.read()
+  const second = panel.read()
+  await settle()
+  assert.equal(reads.length, 1)
+  finish()
+  await Promise.all([first, second])
+  assert.equal(reads.length, 0)
 
-  assert.equal(await updatePanel(entry('api', 'C:\\api', ['t1']), { root }), 'updated')
-  await updatePanel(entry('web', 'C:\\web', ['t2']), { root })
-  const data = readData(await readFile(join(root, 'panel', 'entire.html'), 'utf8'))
+  const before = panel.read()
+  await settle()
+  focused = focusOn('web')
+  const after = panel.read()
+  finish()
+  await before
+  await settle()
+  assert.equal(reads.length, 1, 'the read was of the old workspace, so the later request reads again')
+  finish()
+  const data = await after
   assert.deepEqual(
     data.workspaces.map((e) => e.workspace.name),
     ['web', 'api']
   )
 })
 
-test('a timed refresh that finds nothing new leaves the panel alone', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
-  await mkdir(join(root, 'panel'))
-  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
-  const read = (at, ms, data = {}) => ({ ...entry('api', 'C:\\api', ['t1'], at), steps: [{ key: 'status', ok: true, ms }], report: [`${ms} ms`], data })
-  await updatePanel(read('first', 700), { root })
-
-  assert.equal(await updatePanel(read('second', 900), { root, onlyIfChanged: true }), 'unchanged')
-  const html = () => readFile(join(root, 'panel', 'entire.html'), 'utf8')
-  assert.equal(readData(await html()).workspaces[0].at, 'first')
-
-  assert.equal(await updatePanel(read('third', 800, { trail: { number: 2 } }), { root, onlyIfChanged: true }), 'updated')
-  // ↻ always writes: the panel's spinner stops only when the panel remounts.
-  assert.equal(await updatePanel(read('fourth', 800, { trail: { number: 2 } }), { root }), 'updated')
-  assert.equal(readData(await html()).workspaces[0].at, 'fourth')
+test('a snapshot a command read joins the data', () => {
+  const { panel } = harness(() => focusOn('api'))
+  assert.equal(panel.data, null)
+  panel.add({ ...entry('api', 'C:\\api', ['t1']), steps: [] })
+  panel.add({ workspace: null, steps: [] })
+  assert.equal(panel.data.workspaces.length, 1)
+  assert.deepEqual(panel.data.workspaces[0].report, [])
 })
 
-test('a workspace the panel has never shown counts as changed', () => {
-  assert.equal(shownAlready(null, entry('api', 'C:\\api')), false)
-  assert.equal(shownAlready({ workspaces: [entry('web', 'C:\\web')] }, entry('api', 'C:\\api')), false)
-})
+// The panel's own functions, pulled out of its script, so the tests run what it runs.
+const panelHtml = await readFile(new URL('../panel/index.html', import.meta.url), 'utf8')
+const panelFunction = (name) => new RegExp(`^ {8}function ${name}\\([^)]*\\) \\{[\\s\\S]*?^ {8}\\}$`, 'm').exec(panelHtml)[0]
 
-// The panel's own findEntry, run on the same data, so the worker and the panel can't disagree.
-const template = await readFile(new URL('../panel/template.html', import.meta.url), 'utf8')
-const findEntry = (data, context) =>
-  new Function('DATA', 'context', `${/^ {8}function findEntry\(context\) \{[\s\S]*?^ {8}\}$/m.exec(template)[0]}\nreturn findEntry(context)`)(data, context)
+// findEntry reads the panel's DATA, so give it one.
+const findEntry = (data, context) => new Function('DATA', 'context', `${panelFunction('findEntry')}\nreturn findEntry(context)`)(data, context)
 
 test('the worker finds the entry the panel shows', () => {
   const branch = (e, b) => ({ ...e, workspace: { ...e.workspace, branch: b } })
@@ -147,19 +165,18 @@ test('the worker finds the entry the panel shows', () => {
   )
 })
 
-test("shownAt reads the panel's entry time, or null without one", async () => {
-  const root = await mkdtemp(join(tmpdir(), 'entire-panel-'))
-  await mkdir(join(root, 'panel'))
-  const context = { displayName: 'api', branch: 'main', terminals: [{ id: 't1' }] }
-  assert.equal(shownAt(context, root), null)
-  await writeFile(join(root, 'panel', 'template.html'), TEMPLATE)
-  await updatePanel(entry('api', 'C:\api', ['t1'], '2026-10-31T12:00:00Z'), { root })
-  assert.equal(shownAt(context, root), Date.parse('2026-10-31T12:00:00Z'))
-  assert.equal(shownAt({ ...context, branch: 'feature' }, root), null)
+test("a paired server's workspace is told apart by its server, not by its path alone", () => {
+  const onServer = (environment, at) => ({ ...entry('leadgen', '/home/ubuntu/leadgen', [], at), workspace: { name: 'leadgen', branch: '', path: '/home/ubuntu/leadgen', terminals: [], server: { environment, branch: 'main' } } })
+  let data = mergeEntry(null, onServer('VPS one', 'first'))
+  data = mergeEntry(data, onServer('VPS two', 'second'))
+  assert.deepEqual(data.workspaces.map((e) => e.at), ['second', 'first'])
+  data = mergeEntry(data, onServer('VPS one', 'third'))
+  assert.deepEqual(data.workspaces.map((e) => e.at), ['third', 'second'])
+  // readContext names it by its repo with no branch, which is how the panel finds it.
+  assert.equal(findShown({ workspaces: [data.workspaces[0]] }, { displayName: 'leadgen', branch: '', terminals: [] }).at, 'third')
 })
 
 // The panel's own text for the copy buttons, built from the functions it uses.
-const panelFunction = (name) => new RegExp(`^ {8}function ${name}\\([^)]*\\) \\{[\\s\\S]*?^ {8}\\}$`, 'm').exec(template)[0]
 const findingsText = new Function(`${['words', 'sentence', 'findingWhere', 'findingText', 'findingsText'].map(panelFunction).join('\n')}\nreturn findingsText`)()
 
 test('a copied finding carries its severity, place, status, text and reason', () => {
@@ -173,13 +190,10 @@ test('a copied finding carries its severity, place, status, text and reason', ()
   assert.equal(findingsText([{}]), 'Finding')
 })
 
-test("a paired server's workspace is told apart by its server, not by its path alone", () => {
-  const onServer = (environment, at) => ({ ...entry('leadgen', '/home/ubuntu/leadgen', [], at), workspace: { name: 'leadgen', branch: '', path: '/home/ubuntu/leadgen', terminals: [], server: { environment, branch: 'main' } } })
-  let data = mergeEntry(null, onServer('VPS one', 'first'))
-  data = mergeEntry(data, onServer('VPS two', 'second'))
-  assert.deepEqual(data.workspaces.map((e) => e.at), ['second', 'first'])
-  data = mergeEntry(data, onServer('VPS one', 'third'))
-  assert.deepEqual(data.workspaces.map((e) => e.at), ['third', 'second'])
-  // readContext names it by its repo with no branch, which is how the panel finds it.
-  assert.equal(findShown({ workspaces: [data.workspaces[0]] }, { displayName: 'leadgen', branch: '', terminals: [] }).at, 'third')
+test("the panel's script parses and asks only for the worker handlers that exist", () => {
+  const scripts = [...panelHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])
+  assert.equal(scripts.length, 1)
+  assert.doesNotThrow(() => new Function(scripts[0]))
+  const asked = [...scripts[0].matchAll(/orca\.plugin\s*\.request\('([^']+)'/g)].map((m) => m[1]).sort()
+  assert.deepEqual(asked, ['entire.data', 'entire.read'])
 })

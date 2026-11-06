@@ -8,10 +8,10 @@ results, the architecture, the phases and what we have asked the Orca team for.
 
 - `orca-plugin.json`: the manifest (format 2, host API 1). After changing it, validate it against
   `docs/schemas/plugins/orca-plugin.v2.schema.json` in github.com/stablyai/orca.
-- `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands.
-- `panel/template.html`: the right-sidebar panel. The worker writes it, with Entire's data, to
-  `panel/entire.html` (gitignored). In a fresh clone, run `node scripts/create-panel.mjs` first: Orca
-  refuses a plugin whose panel file is missing.
+- `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands
+  and the panel's request handlers (`entire.read`, `entire.data`).
+- `panel/index.html`: the right-sidebar panel, one HTML file with its script inline. It asks the
+  worker for Entire's data with `orca.plugin.request`.
 - `test/`: unit tests.
 - `scripts/orca-harness/`: runs the worker inside `Orca.exe` the way Orca does, with a fake host API.
 
@@ -28,11 +28,16 @@ From a WSL terminal, `cd "/mnt/c/Users/pcruc/Web Projects/orca-entire-extension"
 by path, `"/mnt/c/Program Files/nodejs/node.exe"`: WSL has `appendWindowsPath=false`, so `node.exe` is
 not on its PATH. `~/orca-entire-extension` is the old WSL copy and has no harness.
 
+- `orca plugin validate .` checks the manifest the way Orca loads it, and `orca plugin dev request .
+  entire.read --data '{"maxAgeMs":0}'` calls the worker's handler as the panel does.
+
 To try the plugin in Orca, add this folder under Settings → Plugins → ⋯ → Development folders. Orca
-then runs it in place. Installing it from the folder any other way copies it into
+then runs it in place, as `local.entire` (the manifest has no `publisher`; a catalog install is
+`petercr.entire`). Installing it from the folder any other way copies it into
 `%APPDATA%\orca\plugins` (a `local-path` entry in `plugins.lock.json`), and that copy ignores later
 edits. There is no Restart button: after editing the worker, turn the plugin off and on so the next
-command starts a fresh worker. Orca reloads a development folder's manifest by itself.
+request starts a fresh worker. Orca reloads a development folder's manifest by itself, and asks for
+approval again when the manifest asks for more.
 
 ## Things that bite
 
@@ -54,24 +59,22 @@ command starts a fresh worker. Orca reloads a development folder's manifest by i
   with Orca's `node:sqlite`. The target's key must be in the Windows ssh-agent (`ssh-add`), and the env
   needs ProgramData (`desktopEnv` derives it) or Windows ssh exits 255 silently. Try it with the
   harness's `repo <name>`.
-- A command must answer within 30 seconds, and idle workers stop after 5 minutes.
+- A command must answer within 30 seconds, and idle workers stop after 5 minutes. A panel request
+  may take up to 120 seconds (the panel asks for 100), and it starts a stopped worker, whose
+  in-memory data is then empty: the panel keeps showing what it has while the worker reads again.
 - The command palette drops a command's result; only the Run button in Settings → Plugins shows it
   (first 200 characters). Report through `notifications.show` and stdout, which is the plugin's Logs.
-- A panel has no channel to its worker. Orca rereads a development folder's panel file when the folder
-  changes, so the worker writes its data into `panel/entire.html`. Orca hashes installed copies and
-  refuses changed ones, so `updatePanel` never writes there, and the panel fills in only from a
-  development folder.
-- The panel's ↻ can't call the worker either. It shows a notification titled
-  `REFRESH_REQUEST_TITLE`, Orca logs it to `%APPDATA%\orca\plugins-data\audit.log` as
-  `titleChars=<length>`, and the worker watches that log. So no worker notification may share that
-  title's length (a test checks), and ↻ works only while a worker is running. Orca stops a worker
-  after 5 minutes without commands, events or host calls, so once started the worker calls
-  `readContext` every 5 seconds and stays up until Orca quits or the plugin is turned off. The same
-  poll is how it sees a workspace switch (`src/worker/focus.mjs`).
-- Each panel write remounts the panel in a new frame (Orca blocks a frame's second navigation, and
-  panels can't call `storage.*`), so what the user opened closes. The 5-minute and agent refreshes
-  pass `onlyIfChanged`. ↻, the commands and a workspace switch always write: their spinners stop only
-  on a remount.
+- The panel drives the reads (host API 1.2, Orca 1.4.246): on mount and on a workspace or branch
+  switch it asks `entire.read` with `maxAgeMs` of a minute, every 5 minutes with 5 minutes, and ↻
+  with 0. The worker reads Entire only when its entry for the focused workspace is older, and runs
+  one read at a time. After a read the panel didn't ask for (a command, an agent finishing) the
+  worker posts `entire.changed` and the panel asks `entire.data`. A post carries at most 256 KiB and
+  an answer 1 MiB, so data never goes in a post, and `mergeEntry` drops the oldest workspaces past
+  the limit.
+- `workspace.changed` fires on focus and terminal changes but not on a branch checkout, so the panel
+  also polls `readContext` every 5 seconds.
+- Orca's plugin frames get no permissions: no async Clipboard API (copy with `execCommand('copy')`
+  in a click), no network, links only through `orca.shell.openExternal`.
 - Keep the panel's script inside its wrapping function. It is a classic script, so a top-level `var`
   named like a window property (`closed`, `name`, `status`) throws or misbehaves.
 
