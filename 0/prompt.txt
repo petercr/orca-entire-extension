@@ -1,0 +1,7 @@
+cool lets look into what we need to do in order to publish this as an orca plugin so other people can enjoy it too!
+
+---
+
+1. yes i have been in contact with the entire team, and the name has been okay'd.
+2. yes mit 
+yes start the panel work on a seperate branch and add to plan
