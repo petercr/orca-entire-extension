@@ -1,0 +1,6 @@
+fix this error: 
+### Medium finding
+
+**Location:** `src/worker/panel.mjs:91-92`
+
+On an initial read, a workspace lookup exception becomes a snapshot with `workspace:null` (`src/worker/snapshot.mjs:60–62`), but this returns the still-null cache as success. The panel clears `readError` (`panel/index.html:700–702`), so its missing-entry guard never retries the same key (`panel/index.html:1259`), leaving the panel blank after lookup recovers. Preserve the failed outcome or retry empty responses on the periodic schedule.

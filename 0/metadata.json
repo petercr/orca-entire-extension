@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M6QKQ9PEA5XWKGY8RE9B3W7M",
+  "session_id": "23e1664f-5009-4ca3-b7d1-839bd3850806",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-06T05:01:28.1053245Z",
+  "branch": "panel-channel",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/orca-harness/worker.mjs",
+    "src/worker/panel.mjs",
+    "test/panel.test.mjs"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "69e6b0160395",
+  "checkpoint_transcript_start": 1425,
+  "transcript_lines_at_start": 1425,
+  "compact_transcript_start": 172,
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 7304,
+    "cache_read_tokens": 522492,
+    "output_tokens": 4562,
+    "api_call_count": 5
+  },
+  "redaction": {
+    "replacements": 10,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 10,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 8
+  }
+}
