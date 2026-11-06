@@ -143,13 +143,14 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
   - [x] Try the channel in Orca: approve `local.entire`, switch workspaces, ↻, let an agent finish,
         and leave Orca idle past 5 minutes so the worker stops and the panel's next request restarts it
         (works, 2026-11-05).
-  - [ ] A README for users: what they need (Entire CLI installed and logged in where the repos live,
+  - [x] A README for users: what they need (Entire CLI installed and logged in where the repos live,
         Orca restarted after installing it), what the plugin runs (`entire`, `git`, `ssh`, `wsl.exe`),
         that it opts out of Entire's telemetry, what it reads of Orca's own files (the SSH targets in
         `profile-state.db`), and an install link,
-        `https://onorca.dev/plugins/petercr.entire?catalog=community`.
-  - [ ] Say which platforms work. Only Windows with WSL and a paired server is tried; reading SSH
-        targets is Windows-only. Try macOS or Linux, or say so in the README.
+        `https://onorca.dev/plugins/petercr.entire?catalog=community` (branch `user-readme`).
+  - [x] Say which platforms work: the README's table marks Windows, WSL and paired servers as tested,
+        and macOS and Linux as untested. `orcaCliPath` expects Orca's CLI where Windows has it, and
+        reading SSH targets is Windows-only. Trying macOS or Linux is still open.
   - [ ] Optional listing images: a cover (16:10, at least 800×500) and up to six screenshots (at
         least 1280×800) that show the real panel.
   - [ ] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
