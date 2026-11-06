@@ -1,0 +1,5 @@
+ok we need to add a button(s) to the finding to copy each 1 or all of them to the clipboard
+
+---
+
+ok looks good. branch commit push and pr
