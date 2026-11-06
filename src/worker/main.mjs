@@ -32,8 +32,15 @@ export default function activate(orca) {
     return snapshot
   }
 
+  // Only a read that found the workspace changed the data; a post after one that didn't would have the
+  // panel fetch the old data and take it as news.
+  const announceIfAdded = (snapshot) => {
+    if (snapshot.workspace) announce()
+    return snapshot
+  }
+
   const panel = createPanelData({
-    collect: () => collect().then((snapshot) => (announce(), snapshot)),
+    collect: () => collect().then(announceIfAdded),
     readContext: () => orca.host.call('workspace.readContext', {})
   })
 
@@ -42,8 +49,7 @@ export default function activate(orca) {
 
   // A command must answer within 30 seconds, so it reads on its own, under its own signal.
   async function refresh(signal) {
-    const snapshot = panel.add(await collect(signal))
-    announce()
+    const snapshot = announceIfAdded(panel.add(await collect(signal)))
     return connectionReport(orca, snapshot)
   }
 

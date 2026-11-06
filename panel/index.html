@@ -1230,9 +1230,10 @@
         // When the panel mounts and when focus moves to another workspace or branch, it asks the worker for
         // data, which reads Entire only if what it has for the workspace is over a minute old. The
         // minute's rerender asks again once the shown entry is 5 minutes old, and retries a failed read
-        // as often. It also asks when the entry is gone and nothing was asked about this workspace since
-        // focus came here: another branch of the same checkout shares its path, so a read of that
-        // branch still running at the switch replaces this branch's entry when it lands.
+        // as often. With no entry it asks every 5 minutes whatever the last answer was, and at once if
+        // nothing was asked about this workspace since focus came here: another branch of the same
+        // checkout shares its path, so a read of that branch still running at the switch replaces this
+        // branch's entry when it lands.
         function noteFocus(context, entry) {
           var key = context
             ? JSON.stringify([
@@ -1256,7 +1257,7 @@
           var due = !(Date.now() - asked.at < AUTO_REFRESH_MS)
           if (entry) {
             if (due && !(age < AUTO_REFRESH_MS)) ask(AUTO_REFRESH_MS)
-          } else if (asked.key !== key || (readError && due)) {
+          } else if (asked.key !== key || due) {
             ask(SWITCH_FRESH_MS)
           }
         }

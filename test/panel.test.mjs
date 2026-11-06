@@ -244,11 +244,14 @@ test("the panel asks again when a read of the checkout's other branch replaced t
   await settle()
   panel.show(onBranch('a'))
   assert.equal(requests.length, 1, 'a asks again')
-  // Still nothing for a after asking: no request on every render.
+  // Still nothing for a after asking: no request on every render, but again in 5 minutes.
   requests.shift().resolve({ workspaces: [entryOn('b', at())] })
   await settle()
   panel.show(onBranch('a'))
   assert.equal(requests.length, 0)
+  tick(5 * 60_000)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 1)
 })
 
 test('the panel retries a failed read after 5 minutes, and data the worker posts clears the failure', async () => {
@@ -284,6 +287,18 @@ test('with nothing to show, the panel retries a failed first read after 5 minute
   tick(5 * 60_000)
   panel.show(onBranch('a'))
   assert.equal(requests.length, 1, 'retried')
+  // An answer without the workspace, then data the worker posts, clear the error but not the retry.
+  requests.shift().resolve(null)
+  await settle()
+  panel.fetchData()
+  requests.shift().resolve(null)
+  await settle()
+  assert.equal(panel.readError(), null)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 0)
+  tick(5 * 60_000)
+  panel.show(onBranch('a'))
+  assert.equal(requests.length, 1, 'retried again')
 })
 
 // The panel's own text for the copy buttons, built from the functions it uses.
