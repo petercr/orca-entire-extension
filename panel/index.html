@@ -554,40 +554,30 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- The worker writes each snapshot here (src/worker/panel.mjs). Do not edit panel/entire.html. -->
-    <script id="entire-data" type="application/json">null</script>
     <script>
       // A function scope keeps these names off window: as globals, `closed` or `status` would clash.
       ;(function () {
         'use strict'
         // Everything below comes from Entire and Orca and is untrusted: it only ever goes into textContent.
-        var DATA = readData()
+        // The worker's snapshots, { version, workspaces: [entry] }, newest first (src/worker/panel.mjs).
+        var DATA = null
         var root = document.getElementById('root')
-        // Sections the user opened or closed. Orca remounts the panel on each update, which resets it.
+        // Sections the user opened or closed, kept across rerenders.
         var opened = {}
         var shown = null
         var last = { context: null, error: null }
-        // src/worker/refresh-requests.mjs listens for exactly this title.
-        var REFRESH_TITLE = 'Entire: refreshing the panel'
-        // A refresh normally remounts the panel within a few seconds; after this long, assume it won't.
-        var REFRESH_WAIT_MS = 12000
-        var refreshing = false
-        var refreshHint = null
-        // The worker reads a workspace focus moves to unless the entry this panel shows for it is under a
-        // minute old (SWITCH_FRESH_MS and shownAt in src/worker), then rewrites the panel. Reading a WSL workspace
-        // takes up to ~20 seconds; after this long, assume the worker isn't running.
+        // Switching to a workspace whose entry is younger than this shows it without reading Entire.
         var SWITCH_FRESH_MS = 60000
-        var CHECK_WAIT_MS = 45000
+        // The focused workspace is read again once its entry is this old.
+        var AUTO_REFRESH_MS = 5 * 60000
+        // Reading a WSL workspace takes up to ~20 seconds, one on a paired server over SSH longer.
+        var READ_TIMEOUT_MS = 100000
+        var reads = 0
+        var refreshing = false
+        var readError = null
         var focusedKey = null
-        var checkingSince = null
-
-        function readData() {
-          try {
-            return JSON.parse(document.getElementById('entire-data').textContent)
-          } catch (_) {
-            return null
-          }
-        }
+        // The workspace the panel last asked about, and when.
+        var asked = { key: null, at: 0 }
 
         function el(tag, className, text) {
           var node = document.createElement(tag)
@@ -680,42 +670,65 @@
         }
 
         function refreshButton() {
-          var busy = refreshing || checkingSince !== null
-          var button = titled(el('button', 'refresh' + (busy ? ' spinning' : '')), busy ? 'Refreshing…' : 'Refresh')
+          var busy = reads > 0
+          var button = titled(el('button', 'refresh' + (busy ? ' spinning' : '')), busy ? 'Reading Entire…' : 'Refresh')
           button.type = 'button'
           button.setAttribute('aria-label', 'Refresh')
           button.disabled = refreshing
           button.appendChild(icon(['M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8', 'M21 3v5h-5']))
-          button.addEventListener('click', requestRefresh)
+          button.addEventListener('click', function () {
+            ask(0, true)
+            rerender()
+          })
           return button
         }
 
-        // The worker hears this notification through Orca's audit log, refreshes, and Orca remounts the
-        // panel with the new data, which ends this document. Still here later means the worker isn't running.
-        function requestRefresh() {
-          refreshing = true
-          refreshHint = null
-          rerender()
-          orca.host.call('notifications.show', { title: REFRESH_TITLE }).then(
-            function () {
-              setTimeout(function () {
-                refreshing = false
-                refreshHint =
-                  "Nothing refreshed: the plugin's worker isn't running. Run Entire: Refresh panel from the command palette once, and ↻ works until Orca quits."
-                rerender()
-              }, REFRESH_WAIT_MS)
-            },
-            function (error) {
-              refreshing = false
-              refreshHint = "Couldn't ask for a refresh: " + error.code + ': ' + error.message
+        // Asks the worker for its data, reading Entire first unless the focused workspace's entry is
+        // younger than maxAgeMs (0 always reads). Orca starts the worker if it isn't running. render
+        // calls this, so it leaves the first rerender to its caller.
+        function ask(maxAgeMs, manual) {
+          asked = { key: focusedKey, at: Date.now() }
+          if (!orca.plugin || !orca.host.has('plugin.request')) {
+            readError = { code: 'unknown_method', message: 'this Orca has no plugin.request. Entire for Orca needs Orca 1.4.246 or later.' }
+            return
+          }
+          reads++
+          if (manual) refreshing = true
+          orca.plugin
+            .request('entire.read', { maxAgeMs: maxAgeMs }, { timeoutMs: READ_TIMEOUT_MS })
+            .then(
+              function (data) {
+                DATA = data
+                readError = null
+              },
+              function (error) {
+                readError = error
+              }
+            )
+            .then(function () {
+              reads--
+              if (manual) refreshing = false
               rerender()
-            }
+            })
+        }
+
+        // The worker posts entire.changed after a read nobody here asked for: a command, or an agent
+        // finishing. Its data comes back through a request, since a post carries at most 256 KiB.
+        function fetchData() {
+          orca.plugin.request('entire.data', {}).then(
+            function (data) {
+              DATA = data
+              // The worker just read Entire, so an earlier failure no longer describes it.
+              readError = null
+              rerender()
+            },
+            function () {}
           )
         }
 
         function header(context, entry) {
           var heading = add(el('div', 'heading'), el('span', 'dot ' + (entry ? health(entry) : '')), el('strong', 'clip', context.displayName))
-          if (checkingSince !== null) add(heading, el('span', 'when muted', 'Checking…'))
+          if (reads > 0) add(heading, el('span', 'when muted', 'Checking…'))
           else if (entry) add(heading, titled(el('span', 'when muted', ago(entry.at)), 'Read from Entire ' + new Date(entry.at).toLocaleString()))
           add(heading, refreshButton())
           var where = entry && entry.workspace.where
@@ -1176,8 +1189,9 @@
         function render(context, error) {
           last = { context: context, error: error }
           var entry = context ? findEntry(context) : null
-          noteSwitch(context, entry)
-          var signature = JSON.stringify([context, entry && entry.at, error && error.code, refreshing, refreshHint, checkingSince, Math.floor(Date.now() / 60000)])
+          noteFocus(context, entry)
+          var problem = readError && readError.code + ': ' + readError.message
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, reads, refreshing, problem, Math.floor(Date.now() / 60000)])
           if (signature === shown) return
           shown = signature
           root.textContent = ''
@@ -1185,14 +1199,13 @@
           if (error) return add(root, blank("Can't read the workspace", error.code + ': ' + error.message), footer())
           if (!context) return add(root, blank('No workspace focused', 'Focus a workspace to see its Entire data.'), footer())
           add(root, header(context, entry))
-          if (refreshHint) add(root, el('div', 'notice', refreshHint))
+          if (problem) add(root, el('div', 'notice bad', "Couldn't read Entire: " + problem))
           if (!entry) {
-            // Nothing written at all means the worker can't write here; otherwise this workspace is new to it.
             return add(
               root,
-              DATA
-                ? blank('Reading Entire for this workspace…', 'This takes a few seconds after you switch here. If nothing shows, use ↻.')
-                : blank('No Entire data yet', 'The panel fills in only when Orca runs this plugin from a Development folder (Settings → Plugins → ⋯ → Development folders).'),
+              reads > 0
+                ? blank('Reading Entire for this workspace…', 'This takes a few seconds, longer for a WSL workspace or one on a paired server.')
+                : blank('No Entire data yet', 'Use ↻ to read Entire for this workspace.'),
               footer()
             )
           }
@@ -1214,10 +1227,14 @@
           add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer())
         }
 
-        // A switch while this panel is up means the worker is about to read the new workspace, unless its
-        // data is fresh. The rewrite remounts the panel, which ends the check; the first render after a
-        // mount is no switch.
-        function noteSwitch(context, entry) {
+        // When the panel mounts and when focus moves to another workspace or branch, it asks the worker for
+        // data, which reads Entire only if what it has for the workspace is over a minute old. The
+        // minute's rerender asks again once the shown entry is 5 minutes old, and retries a failed read
+        // as often. With no entry it asks every 5 minutes whatever the last answer was, and at once if
+        // nothing was asked about this workspace since focus came here: another branch of the same
+        // checkout shares its path, so a read of that branch still running at the switch replaces this
+        // branch's entry when it lands.
+        function noteFocus(context, entry) {
           var key = context
             ? JSON.stringify([
                 context.displayName,
@@ -1229,12 +1246,20 @@
                   .sort()
               ])
             : null
-          if (focusedKey !== null && key !== focusedKey) {
-            var stale = !entry || !(Date.now() - Date.parse(entry.at) < SWITCH_FRESH_MS)
-            checkingSince = key && stale ? Date.now() : null
+          var age = entry ? Date.now() - Date.parse(entry.at) : Infinity
+          if (key !== focusedKey) {
+            focusedKey = key
+            readError = null
+            if (key && !(age < SWITCH_FRESH_MS)) ask(SWITCH_FRESH_MS)
+            return
           }
-          focusedKey = key
-          if (checkingSince !== null && Date.now() - checkingSince > CHECK_WAIT_MS) checkingSince = null
+          if (!key || reads > 0) return
+          var due = !(Date.now() - asked.at < AUTO_REFRESH_MS)
+          if (entry) {
+            if (due && !(age < AUTO_REFRESH_MS)) ask(AUTO_REFRESH_MS)
+          } else if (asked.key !== key || due) {
+            ask(SWITCH_FRESH_MS)
+          }
         }
 
         // Keep this the same as findShown in src/worker/panel.mjs.
@@ -1263,7 +1288,8 @@
           return byName.length === 1 ? byName[0] : null
         }
 
-        // No event tells a panel that focus moved, so ask which workspace is focused every few seconds.
+        // workspace.changed tells the panel when focus moves or terminals change, but not when the focused
+        // workspace checks out another branch, so a slow poll catches that.
         function tick() {
           if (!orca.host.has('workspace.readContext')) {
             render(null, { code: 'unknown_method', message: 'this Orca has no workspace.readContext' })
@@ -1279,8 +1305,16 @@
           )
         }
 
-        tick()
-        setInterval(tick, 2000)
+        if (orca.plugin) orca.plugin.on('entire.changed', fetchData)
+        // Each new subscriber first gets the current context, so this also renders the first view.
+        if (orca.api.minor >= 2) {
+          orca.on('workspace.changed', function (event) {
+            render(event.context, null)
+          })
+        } else {
+          tick()
+        }
+        setInterval(tick, 5000)
       })()
     </script>
   </body>

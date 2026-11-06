@@ -3,12 +3,14 @@
 Bring Entire (trails, findings, approvals, checkpoints) into Orca's UI as an Orca plugin, the way
 Orca already surfaces GitHub pull requests and checks.
 
-Status: phases 0 and 0.5 done, and a stopgap Entire panel works from a development folder. Next:
-phase 1 spikes.
+Status: phases 0 and 0.5 done. The Entire panel now talks to its worker over Orca's panel channel
+(host API 1.2), so it works from an installed copy too, which unblocks publishing (phase 6). Next:
+try the channel in Orca, then the phase 6 release steps.
 
 ## Environment
 
-- Orca desktop runs on Windows (1.4.245). Plugins are in alpha: manifest format 2, host API 1.0.
+- Orca desktop runs on Windows (1.4.250 since 2026-11-05; the plan began on 1.4.245). Plugins are in
+  alpha: manifest format 2. The plugin targets Orca 1.4.246 or later for host API 1.2.
 - Most Orca and Entire projects live in WSL (`\\wsl.localhost\Ubuntu\...`). Others live
   on a VPS that Orca reaches as a paired Orca server (`orca environment list`: "Endo VPS Server", an
   orcad over an SSH tunnel to `ubuntu@15.204.88.195`).
@@ -17,7 +19,7 @@ phase 1 spikes.
 - This repo: `C:\Users\pcruc\Web Projects\orca-entire-extension`, origin
   `entire://aws-us-east-2.entire.io/et/entire-repos/orca-entire-extension`, Entire enabled.
 
-## What Orca's plugin API allows today (1.4.245)
+## What Orca's plugin API allows (1.4.245, updated for 1.4.250)
 
 Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/stablyai/orca.
 
@@ -31,27 +33,26 @@ Sources: `docs/reference/plugin-*.md` and `src/shared/plugins/**` in github.com/
 - Events (at most 3): `workspace.created`, `workspace.removed`, `agent.status.changed`.
 - The command palette ignores a command's return value. The Run button in Settings → Plugins shows its
   first 200 characters in a toast. Worker stdout and stderr go to the plugin's Logs (last 200 lines).
-- Panels are sealed: Orca injects CSP `connect-src 'none'` (scripts and styles inline only, images
-  as data URLs), blocks links and `window.open`, and gives a panel no channel to its own worker. A
-  panel can call only `workspace.readContext` and `notifications.show`, and loads one HTML file.
-- Stopgap: Orca rereads a development folder's panel file whenever the folder changes and remounts
-  the panel when the HTML differs. Writing a file there neither restarts the worker nor asks for
-  approval again (only shortcuts and VM recipes tie approval to file bytes). So the worker writes its
-  data into the panel file. Installed copies are hash-checked and refused once a byte changes, so
-  this works only from a development folder.
-- Stopgap for the panel's ↻: a panel's only mutation is `notifications.show`, which Orca records in
-  `plugins-data\audit.log` as `titleChars=<n>`. The button shows a notification with a title length
-  no worker notice uses, and a running worker watches the log. Orca's 5-minute idle timer resets on
-  the worker's own host calls, so once started the worker calls `readContext` every 5 seconds and
-  stays up with Orca. A keyboard shortcut is no way out: in
-  a development folder, keybindings tie approval to every file, so each panel write would need a new
-  review.
+- Panels are sealed: no network, no browser permissions (so no async Clipboard API;
+  `execCommand('copy')` in a click works), links only through `orca.shell.openExternal` (1.1).
+- Host API 1.2 (Orca 1.4.246) added the panel channel: a panel calls `orca.plugin.request(name,
+  input, { timeoutMs })`, which starts the worker if needed and runs the handler it registered with
+  `orca.panels.handle`; the worker posts with `orca.panels.post` (fire and forget, 256 KiB) and the
+  panel listens with `orca.plugin.on`. Answers go up to 1 MiB, requests up to 120 s. A panel also
+  hears `workspace.changed` and agent events with `orca.on`. 1.2 also brought `agents.list`; 1.3
+  brings `workspace.list` (every workspace with its path and host, worker only), which could replace
+  much of `src/worker/workspace.mjs` once the installed Orca offers it.
+- Before 1.2 the panel worked only from a development folder: the worker wrote its data into the
+  panel file (installed copies are hash-checked), and ↻ reached the worker through Orca's audit log.
+  Both stopgaps are gone (branch `panel-channel`).
 - Reserved but not shipped: `taskSources`, `statusBarItems`, `sidebarCards`, `connections`, `settings`,
   `hooks`, `skills`, `mcpServers`.
-- The installed build has no `orca plugin ...` CLI (it is on Orca's `main`). Load the plugin through
-  Settings → Plugins → Development folders.
-- On 1.4.245 the manifest must keep `publisher` (leaving it out needs `>=1.4.246`). When distributing,
-  it must equal the GitHub owner of the repository Orca installs from. Ids may not start with `orca-`.
+- 1.4.250 has the `orca plugin` CLI: `validate`, `inspect` (content hash), `release-entry`, `logs`,
+  and `dev request` to call a panel handler. Load the plugin through Settings → Plugins →
+  Development folders.
+- `publisher` is deprecated: Orca names the publisher after the repository owner for catalog and Git
+  installs (`petercr.entire`) and `local` for a folder (`local.entire`). Leaving it out needs
+  `>=1.4.246`. Ids may not start with `orca-`.
 
 ## Spike results (2026-10-30)
 
@@ -81,15 +82,14 @@ Run from Windows Node with the worker's env allowlist:
   the server's Orca SSH target, with the key in the Windows ssh-agent. Without that, the panel says why.
 - Shell out to the Entire CLI rather than calling its REST API. The CLI owns login, contexts and cell
   routing, so the plugin never holds a token. `entire api` covers gaps.
-- Refresh the focused workspace on `agent.status.changed`, when focus moves to it (no event says so:
-  the worker polls `readContext` every 5 seconds) and every 5 minutes. The 5-minute and agent
-  refreshes write the panel only when Entire's data changed, since each write remounts it; after a
-  switch the panel shows "Checking…" until the worker rewrites it. Later, tail
+- Refresh the focused workspace on `agent.status.changed`, when focus moves to it or its branch
+  changes (`workspace.changed`, plus a 5-second `readContext` poll for branch checkouts) and every
+  5 minutes. The panel asks, the worker reads Entire only when its data for the workspace is older
+  than the request allows, and the panel shows "Checking…" while a read runs. Later, tail
   `trail watch --json` while the worker is alive.
-- Panels only render what the worker hands them. Today that is the panel file the worker writes
-  (`panel/entire.html`, up to 10 workspaces, matched to the focused one by terminal id, then name
-  and branch). Swap to the panel → worker channel when Orca ships it. Feature-detect with
-  `orca.host.has(...)` so one build runs on shipped and newer Orca.
+- Panels only render what the worker hands them: its in-memory snapshots (up to 10 workspaces,
+  matched to the focused one by terminal id, then name and branch), through `entire.read` and
+  `entire.data`. Feature-detect with `orca.host.has(...)` so a too-old Orca gets a clear message.
 - Entire text (intent, findings, comments) is untrusted: render it as text and never execute it.
 
 ## GitHub feature → Entire equivalent
@@ -120,17 +120,45 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
       reviewed, merged change is `test/fixtures/trail-367-*.json`. The Trail section follows Entire's
       web view (change, code review, merge gates, findings) from `trail show` and `trail finding list`,
       plus `git diff --shortstat` for the line counts. Not shown: the web view's Confidence, Risk,
-      Drift and Security scores, which no CLI command or API type exposes. A live, installable panel
-      needs a panel → worker channel (Orca #25256).
+      Drift and Security scores, which no CLI command or API type exposes. Since host API 1.2 the
+      panel asks its worker for the data, so it works installed too.
 - [ ] 4. Trails tab on the Tasks page and a settings form (Orca #26282).
 - [ ] 5. Deeper: status bar item, forge provider for `entire://` remotes, Entire agent hooks and skills,
       checkpoints, `entire why`, `entire review`.
-- [ ] 6. Distribution: a GitHub mirror (Orca installs over https Git and derives the publisher from the
-      owner), then a catalog listing.
+- [ ] 6. Distribution through Orca's community catalog (researched 2026-11-05). Community plugins
+      are listed by machine, not reviewed: a public GitHub repo with `orca-plugin.json` at its root,
+      the `orca-plugin` topic and a `vX.Y.Z` tag. Within about an hour the plugin shows at
+      `onorca.dev/plugins/petercr/orca-entire-extension` and in `stablyai/orca-community-plugins`,
+      pinned to the tag's commit and content hash. A listed version never changes, and a moved tag
+      is refused. The official catalog (`stablyai/orca-plugins`) takes only Stably's own plugins.
+      Exclusions: the validator fails, no license GitHub detects, binaries or symlinks, a publisher
+      other than the repo owner, a fork, an archived repo, the listing policy (no paywall, no
+      impersonation, no tracking, no obfuscated code). The Entire team has approved the name.
+      Users get updates on their own unless one asks for more access (a capability, command, panel
+      or event), which Orca makes them approve again.
+  - [x] The panel asks its worker for data over host API 1.2 instead of reading a file the worker
+        rewrites (branch `panel-channel`).
+  - [x] Manifest: `engines.orca` `>=1.4.246`, no `publisher`, `license` MIT, `repository`; a
+        `LICENSE` file.
+  - [x] Try the channel in Orca: approve `local.entire`, switch workspaces, ↻, let an agent finish,
+        and leave Orca idle past 5 minutes so the worker stops and the panel's next request restarts it
+        (works, 2026-11-05).
+  - [ ] A README for users: what they need (Entire CLI installed and logged in where the repos live,
+        Orca restarted after installing it), what the plugin runs (`entire`, `git`, `ssh`, `wsl.exe`),
+        that it opts out of Entire's telemetry, what it reads of Orca's own files (the SSH targets in
+        `profile-state.db`), and an install link,
+        `https://onorca.dev/plugins/petercr.entire?catalog=community`.
+  - [ ] Say which platforms work. Only Windows with WSL and a paired server is tried; reading SSH
+        targets is Windows-only. Try macOS or Linux, or say so in the README.
+  - [ ] Optional listing images: a cover (16:10, at least 800×500) and up to six screenshots (at
+        least 1280×800) that show the real panel.
+  - [ ] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
+        v0.1.0 && git push origin v0.1.0`, `gh repo edit petercr/orca-entire-extension --add-topic
+        orca-plugin`, then check the listing page.
 
 ## Asks for the Orca team
 
-1. A channel from a panel to its own worker (#25256, or a push channel). It blocks any live panel.
+1. ~~A channel from a panel to its own worker~~: shipped in host API 1.2 (Orca 1.4.246).
 2. `workspace.readContext`: add the worktree id, path and host (local, WSL, SSH, paired server). For a
    paired server's workspace it now gives only the repo's name, with no branch or terminals.
 3. Task sources and plugin settings (#26282), with a start recipe that can check out an existing branch.
@@ -142,8 +170,8 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 
 ## Risks and open questions
 
-- Phases 3–5 depend on unmerged Orca PRs: #25256 quiet since Oct 7, #26282 active, #15315 (forge
-  providers) stale since August.
+- Phases 4–5 depend on Orca work: #26282 active (task sources; plugin settings shipped in 1.4.246),
+  #15315 (forge providers) stale since August. Phase 3's channel shipped in host API 1.2.
 - A paired server's workspace reaches `readContext` as its repo's display name, an empty branch and
   no terminals (seen 2026-11-01): the desktop runtime doesn't hold it. The worker matches the repo name
   against each paired server's `orca repo list` and `worktree list --environment`. Two worktrees of one

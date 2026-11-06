@@ -1,50 +1,14 @@
-// Host API 1.0 gives a panel no channel to its worker, but Orca rereads a development folder's panel
-// file when the folder changes and remounts the panel when the HTML differs. So the worker writes
-// each snapshot into the panel file, and the panel picks the entry for the focused workspace.
-import { existsSync, readFileSync } from 'node:fs'
-import { readFile, rename, writeFile } from 'node:fs/promises'
-import { join, win32 } from 'node:path'
-import { fileURLToPath } from 'node:url'
+// What the panel shows: the newest snapshot of each workspace the worker read, kept in the worker's
+// memory. The panel asks for it with plugin.request (the handlers are in main.mjs) and gets all of
+// it, then picks the focused workspace's entry itself (findEntry in panel/index.html).
 import { reportLines } from './doctor.mjs'
 
-export const PLUGIN_ROOT = fileURLToPath(new URL('../../', import.meta.url))
-export const TEMPLATE = 'panel/template.html'
-// Generated and gitignored; orca-plugin.json names it as the panel's entry.
-export const PANEL = 'panel/entire.html'
-
-const DATA = /(<script id="entire-data" type="application\/json">)([\s\S]*?)(<\/script>)/
 const MAX_WORKSPACES = 10
-
-// Orca hashes an installed copy (plugins\<publisher.id>\<content hash>) and refuses it once a byte
-// changes, so the worker writes the panel only in a development folder. path.win32 splits on both
-// separators, so this reads Windows and POSIX roots the same on any platform.
-export function isInstalledCopy(root) {
-  const { basename, dirname } = win32
-  const dir = root.replace(/[\\/]+$/, '')
-  return /^[0-9a-f]{32,64}$/i.test(basename(dir)) && basename(dirname(dirname(dir))).toLowerCase() === 'plugins'
-}
+// Orca refuses a plugin.request answer over 1 MiB; leave room for its envelope.
+const MAX_ANSWER_CHARS = 900_000
 
 export function panelEntry(snapshot) {
   return { ...snapshot, report: reportLines(snapshot) }
-}
-
-// Entire's text is untrusted: escaping < > & keeps it from closing the script element it sits in.
-export function embedData(data) {
-  return JSON.stringify(data).replace(/[<>&]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
-}
-
-export function readData(html) {
-  const match = DATA.exec(html)
-  try {
-    return match ? JSON.parse(match[2]) : null
-  } catch {
-    return null
-  }
-}
-
-export function renderPanel(template, data) {
-  if (!DATA.test(template)) throw new Error(`${TEMPLATE} has no entire-data script`)
-  return template.replace(DATA, (_, open, _old, close) => `${open}${embedData(data)}${close}`)
 }
 
 // Same path on the same host, or a terminal they share.
@@ -57,14 +21,16 @@ function sameWorkspace(entry, other) {
   )
 }
 
-// A newer entry replaces any for the same workspace.
-export function mergeEntry(data, entry) {
+// A newer entry replaces any for the same workspace, and the oldest go once the answer gets too big.
+export function mergeEntry(data, entry, { maxChars = MAX_ANSWER_CHARS } = {}) {
   const others = (data?.workspaces ?? []).filter((other) => !sameWorkspace(entry, other))
-  return { version: 1, workspaces: [entry, ...others].slice(0, MAX_WORKSPACES) }
+  const workspaces = [entry, ...others].slice(0, MAX_WORKSPACES)
+  while (workspaces.length > 1 && JSON.stringify(workspaces).length > maxChars) workspaces.pop()
+  return { version: 1, workspaces }
 }
 
 // The entry the panel shows for a readContext result. Keep this the same as findEntry in
-// panel/template.html: the worker uses it to tell whether the panel needs a read after a switch.
+// panel/index.html: the worker uses it to tell whether the panel's entry is fresh enough.
 export function findShown(data, context) {
   const list = data?.workspaces ?? []
   const ids = context.terminals.map((terminal) => terminal.id)
@@ -80,60 +46,64 @@ export function findShown(data, context) {
   return byName.length === 1 ? byName[0] : null
 }
 
-// When the panel's data for the focused workspace was read from Entire, in ms, or null if it has none.
-export function shownAt(context, root = PLUGIN_ROOT) {
-  let data
-  try {
-    data = readData(readFileSync(join(root, PANEL), 'utf8'))
-  } catch {
-    return null
+// The panel's data and the reads that fill it. `collect` reads Entire for the focused workspace (a
+// snapshot), `readContext` asks Orca which workspace that is. One read runs at a time: a request
+// that finds one running waits for it, and reads again only if focus moved meanwhile.
+export function createPanelData({ collect, readContext, now = Date.now }) {
+  let data = null
+  let reading = null
+
+  function add(snapshot) {
+    if (snapshot.workspace) data = mergeEntry(data, panelEntry(snapshot))
+    return snapshot
   }
-  const at = Date.parse(findShown(data, context)?.at)
-  return Number.isFinite(at) ? at : null
-}
 
-// Whether the panel already shows this entry's data: only when it was read and how long Entire took differ.
-export function shownAlready(data, entry) {
-  const shown = (data?.workspaces ?? []).find((other) => sameWorkspace(entry, other))
-  const comparable = (e) => JSON.stringify({ ...e, at: undefined, report: undefined, steps: e.steps?.map(({ ms, ...step }) => step) })
-  return Boolean(shown) && comparable(shown) === comparable(entry)
-}
+  // A read outlives the request that started it, since others may be waiting on it, so it takes no
+  // signal; Entire's own timeouts bound it.
+  function readNow() {
+    reading ??= collect().then(add).finally(() => {
+      reading = null
+    })
+    return reading
+  }
 
-// Commands, agent events and ↻ each refresh on their own, so updates take turns: two overlapping
-// read-merge-writes would each start from the same old panel and one workspace would be lost.
-let writes = Promise.resolve()
+  // A read that couldn't find the focused workspace (its lookup failed) added nothing, so answering
+  // with the data would pass the old data off as this read's. Fail instead: the panel shows why and
+  // retries on its schedule.
+  async function readFresh() {
+    const snapshot = await readNow()
+    if (!snapshot.workspace) throw new Error(snapshot.problem ?? 'Entire was read for no workspace')
+    return data
+  }
 
-// Each write remounts the panel, which closes what the user opened and loses their scroll, so timed
-// refreshes pass onlyIfChanged. ↻ never does: its spinner stops only when the panel remounts.
-export function updatePanel(entry, { root = PLUGIN_ROOT, onlyIfChanged = false } = {}) {
-  if (isInstalledCopy(root)) return Promise.resolve('installed copy')
-  const update = writes.then(async () => {
-    const target = join(root, PANEL)
-    const [template, current] = await Promise.all([
-      readFile(join(root, TEMPLATE), 'utf8'),
-      readFile(target, 'utf8').catch(() => '')
-    ])
-    const data = readData(current)
-    if (onlyIfChanged && shownAlready(data, entry)) return 'unchanged'
-    await writeAtomically(target, renderPanel(template, mergeEntry(data, entry)))
-    return 'updated'
-  })
-  writes = update.catch(() => {})
-  return update
-}
+  async function shown() {
+    const context = await readContext()
+    return context ? findShown(data, context) : null
+  }
 
-// Orca refuses a plugin whose panel entry is missing, so a fresh clone needs an empty panel first.
-export async function ensurePanel(root = PLUGIN_ROOT) {
-  const target = join(root, PANEL)
-  if (existsSync(target)) return false
-  await writeAtomically(target, renderPanel(await readFile(join(root, TEMPLATE), 'utf8'), null))
-  return true
-}
-
-// Orca may read the panel at any moment; a rename never shows it half written. The temporary name
-// carries the process id, so the harness and Orca's worker never share one.
-async function writeAtomically(target, text) {
-  const temporary = `${target}.${process.pid}.tmp`
-  await writeFile(temporary, text)
-  await rename(temporary, target)
+  return {
+    get data() {
+      return data
+    },
+    add,
+    // Reads Entire unless the panel's entry for the focused workspace is younger than maxAgeMs (0
+    // always reads), and answers with all the data.
+    async read({ maxAgeMs = 0 } = {}) {
+      if (maxAgeMs > 0) {
+        const at = Date.parse((await shown())?.at)
+        if (Number.isFinite(at) && now() - at < maxAgeMs) return data
+      }
+      if (reading) {
+        const joined = await reading.catch(() => null)
+        if (joined && (await shown())?.at === joined.at) return data
+      }
+      return readFresh()
+    },
+    // Reads Entire with a read that starts now: one already running may have begun before what the
+    // caller wants to see, such as an agent's last checkpoint, so it waits for that one and reads again.
+    async readAgain() {
+      if (reading) await reading.catch(() => null)
+      return readFresh()
+    }
+  }
 }
