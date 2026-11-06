@@ -140,8 +140,9 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
         rewrites (branch `panel-channel`).
   - [x] Manifest: `engines.orca` `>=1.4.246`, no `publisher`, `license` MIT, `repository`; a
         `LICENSE` file.
-  - [ ] Try the channel in Orca: approve `local.entire`, switch workspaces, ↻, let an agent finish,
-        and leave Orca idle past 5 minutes so the worker stops and the panel's next request restarts it.
+  - [x] Try the channel in Orca: approve `local.entire`, switch workspaces, ↻, let an agent finish,
+        and leave Orca idle past 5 minutes so the worker stops and the panel's next request restarts it
+        (works, 2026-11-05).
   - [ ] A README for users: what they need (Entire CLI installed and logged in where the repos live,
         Orca restarted after installing it), what the plugin runs (`entire`, `git`, `ssh`, `wsl.exe`),
         that it opts out of Entire's telemetry, what it reads of Orca's own files (the SSH targets in
