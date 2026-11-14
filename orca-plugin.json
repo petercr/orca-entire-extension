@@ -4,10 +4,14 @@
   "execution": "trusted-worker",
   "id": "entire",
   "name": "Entire",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Entire trails, findings and checkpoints for your Orca workspaces.",
   "license": "MIT",
   "repository": "https://github.com/petercr/orca-entire-extension",
+  "cover": {
+    "path": "images/cover.jpg",
+    "alt": "An orca leaps past the Golden Gate Bridge along a glowing path through cards for trails, findings and checkpoints, under the words Entire for Orca"
+  },
   "engines": { "orca": ">=1.4.246" },
   "pluginApi": 1,
   "main": "src/worker/main.mjs",
