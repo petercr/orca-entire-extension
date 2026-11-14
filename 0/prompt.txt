@@ -1,0 +1,24 @@
+ok hold for confirmation from team
+
+---
+
+ok greast so we finally have the images for this attached. lets add them and get going[Image: ChatGPT Image Nov 6, 2026, 04_35_52 PM-1.png; ref=image_57c0c524-7b8f-476a-a5ba-28f205fcda7b] [Image: Entire for Orca ADE Infographic.png; ref=image_09705c61-7a5c-45fa-85ad-7d28c4df6b83]
+
+<t3_context version="1">
+<context kind="image" id="image_57c0c524-7b8f-476a-a5ba-28f205fcda7b">
+name: ChatGPT Image Nov 6, 2026, 04_35_52 PM-1.png
+mimeType: image/png
+sizeBytes: 2103944
+attachmentId: de72187a-d3ae-43c5-a4c6-b7f2b92f7e22-d18e870e-c3c2-4825-915f-57147e32fb47
+</context>
+<context kind="image" id="image_09705c61-7a5c-45fa-85ad-7d28c4df6b83">
+name: Entire for Orca ADE Infographic.png
+mimeType: image/png
+sizeBytes: 1930520
+attachmentId: de72187a-d3ae-43c5-a4c6-b7f2b92f7e22-9a7e68d6-70fc-49c8-aed9-7ca9c179e3dc
+</context>
+</t3_context>
+
+[Attached image "ChatGPT Image Nov 6, 2026, 04_35_52 PM-1.png" is saved at: C:\Users\pcruc\.t3\userdata\attachments\de72187a-d3ae-43c5-a4c6-b7f2b92f7e22-d18e870e-c3c2-4825-915f-57147e32fb47.png]
+
+[Attached image "Entire for Orca ADE Infographic.png" is saved at: C:\Users\pcruc\.t3\userdata\attachments\de72187a-d3ae-43c5-a4c6-b7f2b92f7e22-9a7e68d6-70fc-49c8-aed9-7ca9c179e3dc.png]
