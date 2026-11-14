@@ -1,6 +1,6 @@
 # Entire for Orca
 
-![A robot in a snorkel mask rides a smiling orca past the Golden Gate Bridge, beside the words Entire Extension for Orca ADE](images/cover.jpg)
+![An orca in an Entire T-shirt splashes beside the words Entire for Orca ADE: bring the power of Entire into Orca ADE, with trails, findings and checkpoints. Marked unofficial.](images/banner.jpg)
 
 An [Orca](https://onorca.dev) plugin that shows [Entire](https://entire.com) trails, findings and checkpoints
 for the workspace you're working in, in a panel beside your terminals. It gives Entire the place in Orca

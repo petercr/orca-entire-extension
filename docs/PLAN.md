@@ -153,8 +153,9 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
         reading SSH targets is Windows-only. Trying macOS or Linux is still open.
   - [ ] Optional listing images: a cover (16:10, at least 800×500, at most 1024 KB) and up to six
         screenshots (at least 1280×800, at most 1536 KB) that show the real panel. The cover is
-        `images/cover.jpg` (1506×941); screenshots are still to do. GitHub's social preview has no
-        API: upload it under the repo's Settings → General → Social preview.
+        `images/cover.jpg` (1506×941, no Entire logo); the README opens with `images/banner.jpg`,
+        which carries Entire's logo and says Unofficial. Screenshots are still to do. GitHub's
+        social preview has no API: upload it under the repo's Settings → General → Social preview.
   - [ ] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
         v0.1.0 && git push origin v0.1.0`, `gh repo edit petercr/orca-entire-extension --add-topic
         orca-plugin`, then check the listing page.
