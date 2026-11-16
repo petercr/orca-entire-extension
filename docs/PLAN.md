@@ -3,9 +3,9 @@
 Bring Entire (trails, findings, approvals, checkpoints) into Orca's UI as an Orca plugin, the way
 Orca already surfaces GitHub pull requests and checks.
 
-Status: phases 0 and 0.5 done. The Entire panel now talks to its worker over Orca's panel channel
-(host API 1.2), so it works from an installed copy too, which unblocks publishing (phase 6). Next:
-try the channel in Orca, then the phase 6 release steps.
+Status: phases 0 and 0.5 done. 0.1.0 is listed in Orca's community catalog (2026-11-14), as
+`petercr.entire`. Next: screenshots of the real panel for 0.1.1, then phase 1's spikes and phase 2's
+commands.
 
 ## Environment
 
@@ -125,7 +125,7 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 - [ ] 4. Trails tab on the Tasks page and a settings form (Orca #26282).
 - [ ] 5. Deeper: status bar item, forge provider for `entire://` remotes, Entire agent hooks and skills,
       checkpoints, `entire why`, `entire review`.
-- [ ] 6. Distribution through Orca's community catalog (researched 2026-11-05). Community plugins
+- [x] 6. Distribution through Orca's community catalog (researched 2026-11-05). Community plugins
       are listed by machine, not reviewed: a public GitHub repo with `orca-plugin.json` at its root,
       the `orca-plugin` topic and a `vX.Y.Z` tag. Within about an hour the plugin shows at
       `onorca.dev/plugins/petercr/orca-entire-extension` and in `stablyai/orca-community-plugins`,
@@ -156,9 +156,12 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
         `images/cover.jpg` (1506×941, no Entire logo); the README opens with `images/banner.jpg`,
         which carries Entire's logo and says Unofficial. Screenshots are still to do. GitHub's
         social preview has no API: upload it under the repo's Settings → General → Social preview.
-  - [ ] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
+  - [x] Release: bump `version` (0.1.0), `orca plugin validate .`, commit, `git tag -a v0.1.0 -m
         v0.1.0 && git push origin v0.1.0`, `gh repo edit petercr/orca-entire-extension --add-topic
-        orca-plugin`, then check the listing page.
+        orca-plugin`, then check the listing page. Tagged on `f18c7f8` and listed on 2026-11-14:
+        `onorca.dev/plugins/petercr/orca-entire-extension`, state `listed` in
+        `stablyai/orca-community-plugins`. Later releases: bump `version`, tag `vX.Y.Z` on `main`;
+        a listed version never changes, so every change needs a new tag.
 
 ## Asks for the Orca team
 
