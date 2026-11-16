@@ -11,7 +11,10 @@ results, the architecture, the phases and what we have asked the Orca team for.
 - `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands
   and the panel's request handlers (`entire.read`, `entire.data`).
 - `panel/index.html`: the right-sidebar panel, one HTML file with its script inline. It asks the
-  worker for Entire's data with `orca.plugin.request`.
+  worker for Entire's data with `orca.plugin.request`. Its `PLUGIN_VERSION`, used in the report-a-problem link, has
+  to match the manifest's `version` (a test checks).
+- `.github/ISSUE_TEMPLATE/`: the issue forms. The panel's link fills `bug_report.yml`'s `environment`
+  field by its id, so keep that id when you edit the form.
 - `test/`: unit tests.
 - `scripts/orca-harness/`: runs the worker inside `Orca.exe` the way Orca does, with a fake host API.
 
