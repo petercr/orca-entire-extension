@@ -1,0 +1,13 @@
+switch to main and delete local branches that have already merged
+
+---
+
+nah that's fine. lets work on adding a button to the plugin that takes the user to github to the repo to file and issue there. also lets make an issue template for them to follow
+
+---
+
+ok great it works and open github to file a new issue. BUT we didn't add any kind of issue template to help the user
+
+---
+
+go with 1
