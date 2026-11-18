@@ -19,7 +19,8 @@ It's a community plugin, and it only reads: it never creates, approves or change
 - a connection check that says what worked and what didn't
 
 It reads Entire when you switch workspaces or branches, when an agent finishes, and every 5 minutes.
-↻ reads it now.
+↻ reads it now. **Report a problem on GitHub**, at the bottom of the panel, opens a new issue here with
+the versions filled in.
 
 **Commands** in the command palette:
 
@@ -94,6 +95,11 @@ It keeps what it reads in memory for the last 10 workspaces and stores nothing o
 itself has no network access. Text from Entire, such as finding bodies, is shown as text and never
 run.
 
+**Report a problem on GitHub** opens your browser on a new issue in this repo, through Orca, which
+asks you first. The link carries the plugin's version, Orca's plugin API version, your OS, the Entire
+CLI's version and whether the workspace is local, in WSL or on a paired server. It carries no paths,
+repo names or branches, and nothing is sent until you submit the issue.
+
 ## Troubleshooting
 
 - **"Open a terminal in it and try again":** without a terminal, the plugin knows a workspace only by
@@ -104,6 +110,8 @@ run.
   account that can see the repository.
 - **More detail:** run **Entire: Check connection**, or open the plugin's **Logs** in **Settings →
   Plugins**. Each read writes its report there.
+- **Still stuck:** use **Report a problem on GitHub** in the panel, or
+  [open an issue](https://github.com/petercr/orca-entire-extension/issues/new/choose).
 
 ## Develop
 

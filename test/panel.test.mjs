@@ -322,3 +322,39 @@ test("the panel's script parses and asks only for the worker handlers that exist
   const asked = [...scripts[0].matchAll(/orca\.plugin\s*\.request\('([^']+)'/g)].map((m) => m[1]).sort()
   assert.deepEqual(asked, ['entire.data', 'entire.read'])
 })
+
+test("the panel's plugin version is the manifest's", async () => {
+  const manifest = JSON.parse(await readFile(new URL('../orca-plugin.json', import.meta.url), 'utf8'))
+  assert.equal(/var PLUGIN_VERSION = '([^']*)'/.exec(panelHtml)[1], manifest.version)
+})
+
+// issueUrl and what it calls, with the panel's globals.
+const issueUrl = (entry, platform = 'Win32') =>
+  new Function(
+    'orca',
+    'navigator',
+    'entry',
+    `var PLUGIN_VERSION = '9.9.9'\nvar NEW_ISSUE_URL = 'https://github.com/o/r/issues/new'\n${panelFunction('step')}\n${panelFunction('platformName')}\n${panelFunction('issueUrl')}\nreturn issueUrl(entry)`
+  )({ api: { major: 1, minor: 4 } }, { platform }, entry)
+
+const environment = (url) => {
+  const parsed = new URL(url)
+  assert.equal(parsed.origin + parsed.pathname, 'https://github.com/o/r/issues/new')
+  assert.equal(parsed.searchParams.get('template'), 'bug_report.yml')
+  return parsed.searchParams.get('environment').split('\n')
+}
+
+test('a problem report names versions and the kind of workspace, never its path', () => {
+  const wsl = {
+    ...entry('api', '\\\\wsl.localhost\\Ubuntu\\home\\me\\secret-repo', ['t1']),
+    workspace: { name: 'secret-repo', branch: 'main', path: '\\\\wsl.localhost\\Ubuntu\\home\\me\\secret-repo', where: 'WSL Ubuntu /home/me/secret-repo', terminals: ['t1'] },
+    steps: [{ key: 'version', ok: true, text: 'Entire CLI 1.2.3' }]
+  }
+  const url = issueUrl(wsl)
+  assert.deepEqual(environment(url), ['Entire for Orca: 9.9.9', 'Orca host API: 1.4', 'OS: Windows', 'Entire CLI: 1.2.3','Workspace: in WSL'])
+  assert.doesNotMatch(decodeURIComponent(url), /secret-repo|home|main/)
+
+  const server = { ...wsl, workspace: { ...wsl.workspace, where: null, server: { environment: 'vps' } }, steps: [{ key: 'version', ok: false, text: 'not found' }] }
+  assert.deepEqual(environment(issueUrl(server, 'MacIntel')), ['Entire for Orca: 9.9.9', 'Orca host API: 1.4', 'OS: macOS', 'Workspace: on a paired Orca server'])
+  assert.deepEqual(environment(issueUrl(null, 'Linux x86_64')), ['Entire for Orca: 9.9.9', 'Orca host API: 1.4', 'OS: Linux'])
+})

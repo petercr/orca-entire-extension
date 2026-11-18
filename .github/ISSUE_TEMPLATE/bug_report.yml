@@ -1,0 +1,70 @@
+name: Report a problem
+description: Something in the Entire panel or its commands doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. This repo is the Orca plugin only. A problem with Entire itself (the CLI, trails, checkpoints) or with Orca belongs with those projects.
+
+        **Before you post:** this issue is public. Remove anything private from what you paste, such as repo names, paths, branch names, server addresses and finding text.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what the panel or command showed, and any error message, word for word.
+      placeholder: I switched to a WSL workspace and the panel said "Couldn't read Entire: …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a workspace that …
+        2. Open the Entire panel
+        3. …
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where is the workspace?
+      options:
+        - Windows
+        - WSL, from Windows
+        - A paired Orca server
+        - macOS
+        - Linux
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: orca-version
+    attributes:
+      label: Orca version
+      description: In Orca's About window.
+      placeholder: 1.4.250
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: The panel's "Report a problem on GitHub" button fills this in. Otherwise give the plugin version (Settings → Plugins), the Entire CLI version (`entire --version`) and your OS.
+      render: text
+  - type: textarea
+    id: connection
+    attributes:
+      label: Connection report
+      description: Run **Entire: Check connection**, or open the plugin's **Logs** in **Settings → Plugins**, and paste the report. It can name paths and repos, so remove what you'd rather not share.
+      render: text
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
+      description: Screenshots of the panel help. Check them for private details first.

@@ -550,6 +550,30 @@
         font-weight: 600;
         color: var(--fg);
       }
+      .report {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin: 8px 0 0 -4px;
+        padding: 3px 4px;
+        border: 0;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        cursor: pointer;
+      }
+      .report:hover {
+        background: var(--hover);
+        color: var(--fg);
+      }
+      .report.bad {
+        color: var(--tone);
+      }
+      .report svg {
+        width: 12px;
+        height: 12px;
+      }
     </style>
   </head>
   <body>
@@ -1172,12 +1196,68 @@
           return add(el('div', 'blank'), el('strong', null, title), el('div', 'muted', text))
         }
 
-        function footer() {
+        // Keep this the same as the manifest's version (test/panel.test.mjs checks it).
+        var PLUGIN_VERSION = '0.1.0'
+        var NEW_ISSUE_URL = 'https://github.com/petercr/orca-entire-extension/issues/new'
+        var REPORT_ICON = ['M15 3h6v6', 'M10 14 21 3', 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6']
+
+        function platformName() {
+          var platform = String(navigator.platform || '')
+          return /^win/i.test(platform) ? 'Windows' : /^mac/i.test(platform) ? 'macOS' : 'Linux'
+        }
+
+        // A new issue from .github/ISSUE_TEMPLATE/bug_report.yml with its environment field filled in.
+        // It names versions and the kind of workspace only: no paths, repos or branches, which the
+        // person adds themselves if they want to.
+        function issueUrl(entry) {
+          var lines = ['Entire for Orca: ' + PLUGIN_VERSION, 'Orca host API: ' + orca.api.major + '.' + orca.api.minor, 'OS: ' + platformName()]
+          var version = entry && step(entry, 'version')
+          if (version && version.ok) lines.push('Entire CLI: ' + String(version.text).replace(/^Entire CLI\s+/i, ''))
+          if (entry) {
+            var workspace = entry.workspace
+            lines.push('Workspace: ' + (workspace.server ? 'on a paired Orca server' : /^WSL /.test(workspace.where || '') ? 'in WSL' : 'on this computer'))
+          }
+          return NEW_ISSUE_URL + '?template=bug_report.yml&environment=' + encodeURIComponent(lines.join('\n'))
+        }
+
+        // Orca opens a link only from a click in the panel, and asks the person before a new host.
+        function reportButton(entry) {
+          var label = 'Report a problem on GitHub'
+          var button = titled(el('button', 'report'), 'Opens a new GitHub issue for Entire for Orca')
+          button.type = 'button'
+          add(button, icon(REPORT_ICON), el('span', null, label))
+          var timer = null
+          function failed(text) {
+            button.className = 'report bad'
+            button.lastChild.textContent = text
+            clearTimeout(timer)
+            timer = setTimeout(function () {
+              button.className = 'report'
+              button.lastChild.textContent = label
+            }, 3000)
+          }
+          button.addEventListener('click', function () {
+            if (!orca.shell || !orca.host.has('shell.openExternal')) return failed("This Orca can't open links")
+            orca.shell.openExternal(issueUrl(entry)).then(
+              function (result) {
+                if (result && result.opened === false && result.reason !== 'cancelled') failed("Couldn't open GitHub")
+              },
+              function () {
+                failed("Couldn't open GitHub")
+              }
+            )
+          })
+          return button
+        }
+
+        function footer(entry) {
           return add(
             el('footer'),
             document.createTextNode('Checks Entire when you switch here, when an agent finishes and every 5 minutes. To check now, use ↻ or '),
             el('b', null, 'Entire: Refresh panel'),
-            document.createTextNode('.')
+            document.createTextNode('.'),
+            el('br'),
+            reportButton(entry)
           )
         }
 
@@ -1214,7 +1294,7 @@
           notices(entry).forEach(function (notice) {
             add(root, notice)
           })
-          if (!entry.steps.length) return add(root, footer())
+          if (!entry.steps.length) return add(root, footer(entry))
 
           var active = (status && status.active_sessions) || []
           if (active.length) add(root, section('sessions', 'Sessions', String(active.length), sessions(status), true))
@@ -1224,7 +1304,7 @@
           var list = entry.data.checkpoints
           add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : unread(step(entry, 'checkpoints')), false))
           var bad = failing(entry)
-          add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer())
+          add(root, section('connection', 'Connection', el('span', 'count ' + (bad ? 'bad' : 'ok'), bad ? 'Problem' : 'OK'), connection(entry), bad), footer(entry))
         }
 
         // When the panel mounts and when focus moves to another workspace or branch, it asks the worker for

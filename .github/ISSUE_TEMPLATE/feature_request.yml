@@ -1,0 +1,26 @@
+name: Suggest an idea
+description: Something the Entire panel could show or do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The plugin only reads from Entire, and Orca's plugin API limits what it can do, so some ideas have to wait for Orca. Suggest them anyway.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or question that the plugin doesn't help with today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: What the panel or a command could show or do.
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else?
