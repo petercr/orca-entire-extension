@@ -1,0 +1,6 @@
+fix code review:
+### High finding
+
+**Location:** `src/worker/actions.mjs:50-54`
+
+If the user confirms an action in workspace A and switches to B between the two context reads, `checkShown` validates A, but `focusedHost` reads focus again through `src/worker/workspace.mjs:8` and selects B. If B has the requested trail number and branch, the command can approve or merge B’s change using A’s validation. Bind the request to the confirmed repository and resolve the host from that same validated workspace.
