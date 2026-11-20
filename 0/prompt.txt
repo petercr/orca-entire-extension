@@ -1,0 +1,9 @@
+ok now we need to add 2 buttons: 1 to approve the trail, 1 to merge the PR (only if the trails is approved and has not blockers). 2nd button will still show, just be disabled until clear
+
+---
+
+cool but we need to add some kind of sparkles to the Merge button when it is pushed and goes thru
+
+---
+
+ok branch commit push and pr
