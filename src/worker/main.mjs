@@ -48,13 +48,14 @@ export default function activate(orca) {
   orca.panels?.handle('entire.data', async () => panel.data)
   orca.panels?.handle('entire.read', async (input) => panel.read({ maxAgeMs: Math.max(0, Number(input?.maxAgeMs) || 0) }))
 
-  // Approve or merge the trail the panel shows, then read Entire again so the panel shows the result.
-  // Only the panel's confirmed click sends this; the worker never acts on its own.
+  // Approve or merge the trail the panel showed in the workspace the click was in, then read Entire
+  // again so the panel shows the result. Only the panel's confirmed click sends this; the worker never
+  // acts on its own.
   orca.panels?.handle('entire.act', async (input) => {
     const request = actionRequest(input)
     let message
     try {
-      message = await runAction(orca, request, { readContext: () => orca.host.call('workspace.readContext', {}), data: panel.data })
+      message = await runAction(request, { data: panel.data })
     } catch (error) {
       console.error(`Trail ${request.action} #${request.trail} on ${request.branch} failed: ${error.message}`)
       throw error

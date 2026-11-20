@@ -1040,21 +1040,27 @@
           return add(el('div', 'card'), add(el('div', 'pad'), add(el('div', 'spread'), el('span', 'card-title', 'Code review'), el('span', 'verdict ' + verdict.tone, verdict.text)), bar, el('div', 'meta clip', detail)))
         }
 
-        function trailKey(value) {
-          return value.number + ':' + value.branch
+        // The workspace a click is in, as the worker finds its entry (confirmedEntry in
+        // src/worker/actions.mjs): its path, and its paired server if it has one.
+        function workspaceOf(entry) {
+          return { path: entry.workspace.path, environment: (entry.workspace.server && entry.workspace.server.environment) || null }
+        }
+
+        function trailKey(value, entry) {
+          return JSON.stringify([workspaceOf(entry), value.number, value.branch])
         }
 
         // Approve and Merge, while the change is open. Merge stays off until the worker finds the change
         // approved with nothing blocking (blockers in src/worker/trail.mjs); its title says why.
-        function actions(value) {
-          var key = trailKey(value)
+        function actions(value, entry) {
+          var key = trailKey(value, entry)
           var result = outcome && outcome.key === key ? el('div', 'notice outcome ' + outcome.tone, outcome.text) : null
-          if (!value.open || !value.number || !value.branch) return result
+          if (!value.open || !value.number || !value.branch || !entry.workspace.path) return result
           var blockers = Array.isArray(value.blockers) ? value.blockers : ['Refresh to check the merge gates']
           var buttons = add(
             el('div', 'actions'),
-            actionButton('approve', value, { label: 'Approve', busy: 'Approving…', title: 'Approve trail #' + value.number + ' on ' + value.branch + ' in Entire' }),
-            actionButton('merge', value, {
+            actionButton('approve', value, entry, { label: 'Approve', busy: 'Approving…', title: 'Approve trail #' + value.number + ' on ' + value.branch + ' in Entire' }),
+            actionButton('merge', value, entry, {
               label: 'Merge',
               busy: 'Merging…',
               title: blockers.length ? 'Merges once approved with nothing blocking:\n' + blockers.join('\n') : 'Merge ' + value.branch + ' into ' + (value.base || 'the base branch'),
@@ -1065,8 +1071,8 @@
           return add(el('div'), buttons, why, result)
         }
 
-        function actionButton(action, value, options) {
-          var key = trailKey(value)
+        function actionButton(action, value, entry, options) {
+          var key = trailKey(value, entry)
           var isArmed = armed && armed.action === action && armed.key === key
           var running = acting && acting.action === action && acting.key === key
           var label = running ? options.busy : isArmed ? 'Confirm ' + options.label.toLowerCase() + '?' : options.label
@@ -1075,7 +1081,7 @@
           button.type = 'button'
           button.disabled = Boolean(acting) || Boolean(options.off)
           button.addEventListener('click', function () {
-            if (isArmed) return act(action, value, button.getBoundingClientRect())
+            if (isArmed) return act(action, value, entry, button.getBoundingClientRect())
             armed = { action: action, key: key }
             clearTimeout(armTimer)
             armTimer = setTimeout(function () {
@@ -1087,11 +1093,13 @@
           return button
         }
 
-        // The worker checks the trail is still the one shown for the focused workspace, runs Entire,
-        // reads it again and answers with { message, data }. origin is the clicked button's box, where
-        // a merge that went through sparkles.
-        function act(action, value, origin) {
-          var key = trailKey(value)
+        // The request names the workspace the click was in, so the worker acts there even if focus has
+        // moved since. It checks that workspace still shows the trail, runs Entire, reads it again and
+        // answers with { message, data }. origin is the clicked button's box, where a merge that went
+        // through sparkles.
+        function act(action, value, entry, origin) {
+          var key = trailKey(value, entry)
+          var where = workspaceOf(entry)
           var merged = false
           clearTimeout(armTimer)
           armed = null
@@ -1099,7 +1107,7 @@
           outcome = null
           rerender()
           orca.plugin
-            .request('entire.act', { action: action, trail: value.number, branch: value.branch }, { timeoutMs: ACT_TIMEOUT_MS })
+            .request('entire.act', { action: action, trail: value.number, branch: value.branch, path: where.path, environment: where.environment }, { timeoutMs: ACT_TIMEOUT_MS })
             .then(
               function (answer) {
                 if (answer && answer.data) DATA = answer.data
@@ -1146,9 +1154,9 @@
           }, 1500)
         }
 
-        function mergeCard(value) {
+        function mergeCard(value, entry) {
           var state = mergeState(value)
-          var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line), actions(value)))
+          var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line), actions(value, entry)))
           var merge = value.merge
           if (!merge) return card
           var base = value.base || 'the base branch'
@@ -1395,7 +1403,7 @@
           }
           var body = add(el('div'), changeCard(value))
           if (value.merge && value.merge.review) add(body, reviewCard(value.merge.review))
-          add(body, mergeCard(value))
+          add(body, mergeCard(value, entry))
           if (value.findings) add(body, findingsList(value.findings))
           value.changes
             .filter(function (change) {

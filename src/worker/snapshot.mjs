@@ -82,7 +82,8 @@ export async function focusedHost(orca, { signal } = {}) {
     }
     host = serverHost({ ...server, path, target, remoteProblem })
     // readContext gives a server workspace's repo name and no branch; the panel shows the real branch.
-    workspace.server = { environment: server.environment, branch: server.branch }
+    // repoUrl lets the panel's actions name the repository without resolving focus again.
+    workspace.server = { environment: server.environment, branch: server.branch, repoUrl: host.repo }
     workspace.where = `${server.environment} ${path}`
     if (!host.repo) return { workspace, host: null, problem: `${path} on ${server.environment} has no origin remote, so Entire can't tell which repository it is.` }
     if (!host.branch) return { workspace, host: null, problem: `${path} on ${server.environment} is on no branch (detached HEAD?), so Entire has no trail to look up.` }
