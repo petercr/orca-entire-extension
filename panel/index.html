@@ -550,6 +550,136 @@
         font-weight: 600;
         color: var(--fg);
       }
+      .actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .action {
+        flex: 1;
+        min-width: 0;
+        padding: 3px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .action:hover:not(:disabled) {
+        background: var(--hover);
+      }
+      .action.go {
+        border-color: var(--ok);
+        background: var(--ok);
+        color: #fff;
+      }
+      .action.go:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--ok) 85%, #000);
+      }
+      .action.armed {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .action.go.armed {
+        background: var(--warn);
+        color: #fff;
+      }
+      .action:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .card .outcome {
+        margin: 8px 0 0;
+      }
+      .why {
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+      /* A merge that went through bursts from where the Merge button was. The layer sits outside
+         #root, so the rerender that replaces the button leaves it running. */
+      .sparkles {
+        position: fixed;
+        width: 0;
+        height: 0;
+        pointer-events: none;
+        z-index: 10;
+      }
+      .sparkles .burst {
+        position: absolute;
+        left: -22px;
+        top: -22px;
+        width: 44px;
+        height: 44px;
+        border: 2px solid var(--ok);
+        border-radius: 50%;
+        opacity: 0;
+        animation: burst 0.7s ease-out forwards;
+      }
+      .sparkles .spark {
+        position: absolute;
+        left: -3px;
+        top: -3px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--c);
+        box-shadow: 0 0 6px var(--c);
+        opacity: 0;
+        animation: spark 1.1s cubic-bezier(0.15, 0.75, 0.3, 1) forwards;
+      }
+      .sparkles .spark.star {
+        left: -7px;
+        top: -8px;
+        width: auto;
+        height: auto;
+        background: none;
+        box-shadow: none;
+        color: var(--c);
+        font-size: 14px;
+        line-height: 1;
+        text-shadow: 0 0 6px var(--c);
+      }
+      @keyframes burst {
+        from {
+          opacity: 0.9;
+          transform: scale(0.3);
+        }
+        to {
+          opacity: 0;
+          transform: scale(2.8);
+        }
+      }
+      @keyframes spark {
+        0% {
+          opacity: 1;
+          transform: translate(0, 0) scale(0.3) rotate(0deg);
+        }
+        65% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(var(--dx), var(--dy)) scale(1) rotate(200deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sparkles .burst {
+          animation-name: fade;
+        }
+        @keyframes fade {
+          from {
+            opacity: 0.9;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+      }
       .report {
         display: inline-flex;
         align-items: center;
@@ -602,6 +732,16 @@
         var focusedKey = null
         // The workspace the panel last asked about, and when.
         var asked = { key: null, at: 0 }
+        // Approve and Merge write to Entire, so each takes a second click within ARM_MS. armed is the
+        // button waiting for it, acting the action running, outcome the last one's result; each names
+        // its trail as 'number:branch' so it shows only on that trail.
+        var ARM_MS = 4000
+        // Merging runs on Entire's server, then the worker reads Entire again; Orca allows 120 s.
+        var ACT_TIMEOUT_MS = 115000
+        var armed = null
+        var armTimer = null
+        var acting = null
+        var outcome = null
 
         function el(tag, className, text) {
           var node = document.createElement(tag)
@@ -900,9 +1040,123 @@
           return add(el('div', 'card'), add(el('div', 'pad'), add(el('div', 'spread'), el('span', 'card-title', 'Code review'), el('span', 'verdict ' + verdict.tone, verdict.text)), bar, el('div', 'meta clip', detail)))
         }
 
-        function mergeCard(value) {
+        // The workspace a click is in, as the worker finds its entry (confirmedEntry in
+        // src/worker/actions.mjs): its path, and its paired server if it has one.
+        function workspaceOf(entry) {
+          return { path: entry.workspace.path, environment: (entry.workspace.server && entry.workspace.server.environment) || null }
+        }
+
+        function trailKey(value, entry) {
+          return JSON.stringify([workspaceOf(entry), value.number, value.branch])
+        }
+
+        // Approve and Merge, while the change is open. Merge stays off until the worker finds the change
+        // approved with nothing blocking (blockers in src/worker/trail.mjs); its title says why.
+        function actions(value, entry) {
+          var key = trailKey(value, entry)
+          var result = outcome && outcome.key === key ? el('div', 'notice outcome ' + outcome.tone, outcome.text) : null
+          if (!value.open || !value.number || !value.branch || !entry.workspace.path) return result
+          var blockers = Array.isArray(value.blockers) ? value.blockers : ['Refresh to check the merge gates']
+          var buttons = add(
+            el('div', 'actions'),
+            actionButton('approve', value, entry, { label: 'Approve', busy: 'Approving…', title: 'Approve trail #' + value.number + ' on ' + value.branch + ' in Entire' }),
+            actionButton('merge', value, entry, {
+              label: 'Merge',
+              busy: 'Merging…',
+              title: blockers.length ? 'Merges once approved with nothing blocking:\n' + blockers.join('\n') : 'Merge ' + value.branch + ' into ' + (value.base || 'the base branch'),
+              off: blockers.length > 0
+            })
+          )
+          var why = blockers.length ? el('div', 'meta why', 'Merge waits on: ' + blockers.join(' · ')) : null
+          return add(el('div'), buttons, why, result)
+        }
+
+        function actionButton(action, value, entry, options) {
+          var key = trailKey(value, entry)
+          var isArmed = armed && armed.action === action && armed.key === key
+          var running = acting && acting.action === action && acting.key === key
+          var label = running ? options.busy : isArmed ? 'Confirm ' + options.label.toLowerCase() + '?' : options.label
+          var kind = 'action' + (action === 'merge' && !options.off ? ' go' : '') + (isArmed ? ' armed' : '')
+          var button = titled(el('button', kind, label), isArmed ? 'Click again to ' + action + '. This writes to Entire.' : options.title)
+          button.type = 'button'
+          button.disabled = Boolean(acting) || Boolean(options.off)
+          button.addEventListener('click', function () {
+            if (isArmed) return act(action, value, entry, button.getBoundingClientRect())
+            armed = { action: action, key: key }
+            clearTimeout(armTimer)
+            armTimer = setTimeout(function () {
+              armed = null
+              rerender()
+            }, ARM_MS)
+            rerender()
+          })
+          return button
+        }
+
+        // The request names the workspace the click was in, so the worker acts there even if focus has
+        // moved since. It checks that workspace still shows the trail, runs Entire, reads it again and
+        // answers with { message, data }. origin is the clicked button's box, where a merge that went
+        // through sparkles.
+        function act(action, value, entry, origin) {
+          var key = trailKey(value, entry)
+          var where = workspaceOf(entry)
+          var merged = false
+          clearTimeout(armTimer)
+          armed = null
+          acting = { action: action, key: key }
+          outcome = null
+          rerender()
+          orca.plugin
+            .request('entire.act', { action: action, trail: value.number, branch: value.branch, path: where.path, environment: where.environment }, { timeoutMs: ACT_TIMEOUT_MS })
+            .then(
+              function (answer) {
+                if (answer && answer.data) DATA = answer.data
+                outcome = { key: key, tone: 'ok', text: (answer && answer.message) || 'Done.' }
+                merged = action === 'merge'
+              },
+              function (error) {
+                outcome = { key: key, tone: 'bad', text: (error && error.message) || String(error) }
+              }
+            )
+            .then(function () {
+              acting = null
+              rerender()
+              if (merged) sparkle(origin)
+            })
+        }
+
+        var SPARK_COLORS = ['#2ea043', '#3fb950', '#ffd33d', '#d29922', '#58a6ff', '#f778ba', '#ffffff']
+
+        // A ring and a spray of sparks and stars from the middle of box, gone after a second and a half.
+        // With reduced motion, only the ring fades.
+        function sparkle(box) {
+          if (!box) return
+          var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          var layer = add(el('div', 'sparkles'), el('span', 'burst'))
+          layer.style.left = box.left + box.width / 2 + 'px'
+          layer.style.top = box.top + box.height / 2 + 'px'
+          var count = still ? 0 : 28
+          for (var i = 0; i < count; i++) {
+            var angle = (i / count) * 2 * Math.PI + Math.random() * 0.35
+            var reach = 28 + Math.random() * 46
+            var star = i % 3 === 0
+            var spark = el('span', 'spark' + (star ? ' star' : ''), star ? '✦' : null)
+            // Wider than tall, like the button, and drifting up.
+            spark.style.setProperty('--dx', Math.round(Math.cos(angle) * reach * 1.6) + 'px')
+            spark.style.setProperty('--dy', Math.round(Math.sin(angle) * reach - 14) + 'px')
+            spark.style.setProperty('--c', SPARK_COLORS[i % SPARK_COLORS.length])
+            spark.style.animationDelay = Math.round(Math.random() * 140) + 'ms'
+            add(layer, spark)
+          }
+          document.body.appendChild(layer)
+          setTimeout(function () {
+            if (layer.parentNode) layer.parentNode.removeChild(layer)
+          }, 1500)
+        }
+
+        function mergeCard(value, entry) {
           var state = mergeState(value)
-          var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line)))
+          var card = add(el('div', 'card'), add(el('div', 'pad'), el('div', 'card-title', state.title), el('div', 'meta', state.line), actions(value, entry)))
           var merge = value.merge
           if (!merge) return card
           var base = value.base || 'the base branch'
@@ -1149,7 +1403,7 @@
           }
           var body = add(el('div'), changeCard(value))
           if (value.merge && value.merge.review) add(body, reviewCard(value.merge.review))
-          add(body, mergeCard(value))
+          add(body, mergeCard(value, entry))
           if (value.findings) add(body, findingsList(value.findings))
           value.changes
             .filter(function (change) {
@@ -1271,7 +1525,7 @@
           var entry = context ? findEntry(context) : null
           noteFocus(context, entry)
           var problem = readError && readError.code + ': ' + readError.message
-          var signature = JSON.stringify([context, entry && entry.at, error && error.code, reads, refreshing, problem, Math.floor(Date.now() / 60000)])
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, reads, refreshing, problem, armed, acting, outcome, Math.floor(Date.now() / 60000)])
           if (signature === shown) return
           shown = signature
           root.textContent = ''
@@ -1330,6 +1584,9 @@
           if (key !== focusedKey) {
             focusedKey = key
             readError = null
+            // A confirmation waiting from another workspace mustn't carry over; a result may stay, since
+            // it names its trail and shows only there.
+            armed = null
             if (key && !(age < SWITCH_FRESH_MS)) ask(SWITCH_FRESH_MS)
             return
           }

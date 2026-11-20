@@ -9,7 +9,9 @@ results, the architecture, the phases and what we have asked the Orca team for.
 - `orca-plugin.json`: the manifest (format 2, host API 1). After changing it, validate it against
   `docs/schemas/plugins/orca-plugin.v2.schema.json` in github.com/stablyai/orca.
 - `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands
-  and the panel's request handlers (`entire.read`, `entire.data`).
+  and the panel's request handlers (`entire.read`, `entire.data`, and `entire.act` for the panel's
+  Approve and Merge buttons, in `actions.mjs`). When Merge is enabled is decided once, by
+  `mergeBlockers` in `trail.mjs`; the panel only shows its result.
 - `panel/index.html`: the right-sidebar panel, one HTML file with its script inline. It asks the
   worker for Entire's data with `orca.plugin.request`. Its `PLUGIN_VERSION`, used in the report-a-problem link, has
   to match the manifest's `version` (a test checks).

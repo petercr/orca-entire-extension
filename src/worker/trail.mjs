@@ -10,7 +10,7 @@ export function trailSummary(trail, { findings = null, diff = null } = {}) {
   const changes = Array.isArray(trail.changes) ? trail.changes : []
   const current = changes.find((change) => change.current) ?? changes.find((change) => change.mergeability) ?? null
   const about = findings?.trail ?? {}
-  return {
+  const summary = {
     number: trail.number ?? null,
     title: trail.title ?? '',
     status: trail.status ?? null,
@@ -35,6 +35,26 @@ export function trailSummary(trail, { findings = null, diff = null } = {}) {
     merge: current?.mergeability ? mergeSummary(current.mergeability, about.base) : null,
     findings: findings ? findingsSummary(findings) : null
   }
+  return { ...summary, open: summary.changeStatus === 'open' && summary.status !== 'closed', blockers: mergeBlockers(summary) }
+}
+
+// Why the panel's Merge button stays off, one short line each; empty when it may merge. Merging needs
+// the change open, an approval (when the repo has an approvals gate), every blocking gate passed, no
+// conflicts, and Entire's own word that it merges. Entire checks the gates again when it merges.
+export function mergeBlockers(summary) {
+  if (summary.changeStatus !== 'open' || summary.status === 'closed') return [`The change is ${summary.changeStatus ?? 'not open'}`]
+  const merge = summary.merge
+  if (!merge) return ['Entire reported no merge gates for this change']
+  const blockers = []
+  if (merge.conflicts) blockers.push(`Conflicts with ${summary.base ?? 'the base branch'}`)
+  const approvals = merge.gates.find((gate) => gate.type === 'approvals')
+  if (approvals && approvals.status !== 'passed') blockers.push(`Not approved yet (${approvals.summary ?? approvals.status})`)
+  for (const gate of merge.gates) {
+    if (gate === approvals || !gate.blocking || gate.status === 'passed') continue
+    blockers.push(`${gate.key.replace(/_/g, ' ')}: ${gate.summary ?? gate.status}`)
+  }
+  if (!blockers.length && !merge.mergeable) blockers.push('Entire says this change can’t merge yet')
+  return blockers
 }
 
 function mergeSummary(mergeability, base) {
