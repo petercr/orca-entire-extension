@@ -1,6 +1,7 @@
 // Orca forks this module in a Node worker on the desktop host and calls activate once. Orca starts it
 // for a command, an event, or the panel's first plugin.request, and stops it after 5 idle minutes;
 // the panel's next request starts it again.
+import { actionRequest, runAction } from './actions.mjs'
 import { connectionNotice, connectionReport } from './doctor.mjs'
 import { createPanelData } from './panel.mjs'
 import { collectSnapshot } from './snapshot.mjs'
@@ -46,6 +47,26 @@ export default function activate(orca) {
 
   orca.panels?.handle('entire.data', async () => panel.data)
   orca.panels?.handle('entire.read', async (input) => panel.read({ maxAgeMs: Math.max(0, Number(input?.maxAgeMs) || 0) }))
+
+  // Approve or merge the trail the panel shows, then read Entire again so the panel shows the result.
+  // Only the panel's confirmed click sends this; the worker never acts on its own.
+  orca.panels?.handle('entire.act', async (input) => {
+    const request = actionRequest(input)
+    let message
+    try {
+      message = await runAction(orca, request, { readContext: () => orca.host.call('workspace.readContext', {}), data: panel.data })
+    } catch (error) {
+      console.error(`Trail ${request.action} #${request.trail} on ${request.branch} failed: ${error.message}`)
+      throw error
+    }
+    console.log(message)
+    // The action happened even if this read fails; the panel's next read catches up.
+    const data = await panel.readAgain().catch((error) => {
+      console.error(`Reading Entire after the ${request.action} failed: ${error.message}`)
+      return panel.data
+    })
+    return { message, data }
+  })
 
   // A command must answer within 30 seconds, so it reads on its own, under its own signal.
   async function refresh(signal) {

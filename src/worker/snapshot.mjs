@@ -51,18 +51,17 @@ const FINDINGS = {
 // The panel keeps the newest checkpoints only.
 const CHECKPOINT_LIMIT = 20
 
-// Everything the panel and "Entire: Check connection" show for the focused workspace.
-export async function collectSnapshot(orca, { signal } = {}) {
-  const snapshot = { at: new Date().toISOString(), workspace: null, problem: null, steps: [], data: {} }
-
+// The focused workspace and where Entire runs for it: { workspace, host, problem }. With a problem the
+// host is null, and the workspace too when there is none to describe.
+export async function focusedHost(orca, { signal } = {}) {
   let resolved
   try {
     resolved = await resolveFocusedWorkspace(orca, { signal })
   } catch (error) {
-    return { ...snapshot, problem: `Workspace lookup failed: ${error.message}` }
+    return { workspace: null, host: null, problem: `Workspace lookup failed: ${error.message}` }
   }
   const { context, path, via, candidates, server, unreachable = [] } = resolved
-  if (!context) return { ...snapshot, problem: 'No workspace is focused' }
+  if (!context) return { workspace: null, host: null, problem: 'No workspace is focused' }
   const workspace = {
     name: context.displayName,
     branch: context.branch,
@@ -70,7 +69,7 @@ export async function collectSnapshot(orca, { signal } = {}) {
     path,
     via
   }
-  if (!path) return { ...snapshot, workspace, problem: unresolved(context, via, candidates, unreachable) }
+  if (!path) return { workspace, host: null, problem: unresolved(context, via, candidates, unreachable) }
 
   let host = workspaceHost(path)
   if (server) {
@@ -85,11 +84,19 @@ export async function collectSnapshot(orca, { signal } = {}) {
     // readContext gives a server workspace's repo name and no branch; the panel shows the real branch.
     workspace.server = { environment: server.environment, branch: server.branch }
     workspace.where = `${server.environment} ${path}`
-    if (!host.repo) return { ...snapshot, workspace, problem: `${path} on ${server.environment} has no origin remote, so Entire can't tell which repository it is.` }
-    if (!host.branch) return { ...snapshot, workspace, problem: `${path} on ${server.environment} is on no branch (detached HEAD?), so Entire has no trail to look up.` }
+    if (!host.repo) return { workspace, host: null, problem: `${path} on ${server.environment} has no origin remote, so Entire can't tell which repository it is.` }
+    if (!host.branch) return { workspace, host: null, problem: `${path} on ${server.environment} is on no branch (detached HEAD?), so Entire has no trail to look up.` }
   } else {
     workspace.where = host.kind === 'wsl' ? `WSL ${host.distro} ${host.path}` : path
   }
+  return { workspace, host, problem: null }
+}
+
+// Everything the panel and "Entire: Check connection" show for the focused workspace.
+export async function collectSnapshot(orca, { signal } = {}) {
+  const snapshot = { at: new Date().toISOString(), workspace: null, problem: null, steps: [], data: {} }
+  const { workspace, host, problem } = await focusedHost(orca, { signal })
+  if (problem) return { ...snapshot, workspace, problem }
 
   const version = await runStep(host, VERSION, signal)
   if (!version.ok) return { ...snapshot, workspace, steps: [version.step] }

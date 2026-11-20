@@ -6,7 +6,8 @@ An [Orca](https://onorca.dev) plugin that shows [Entire](https://entire.com) tra
 for the workspace you're working in, in a panel beside your terminals. It gives Entire the place in Orca
 that GitHub pull requests and checks already have.
 
-It's a community plugin, and it only reads: it never creates, approves or changes anything in Entire.
+It's a community plugin. It only reads, except for the panel's **Approve** and **Merge** buttons,
+which write to Entire only when you click and then confirm. It never creates or changes anything else.
 
 ## What you get
 
@@ -15,6 +16,10 @@ It's a community plugin, and it only reads: it never creates, approves or change
 - the repo's Entire status and any active agent sessions
 - the branch's trail: its change, the code review, the merge gates (approvals, checks, findings, up to
   date) and the findings, each of which you can copy, one at a time or all together
+- **Approve** and **Merge** buttons for the trail's change. Each asks you to click again to confirm.
+  Merge stays greyed out until the change is approved (when the repo needs approvals), no blocking
+  gate is failing or pending, and there are no conflicts; the line under it says what it's waiting on.
+  Entire checks the gates again before it merges, and the plugin never forces a merge.
 - the branch's recent checkpoints
 - a connection check that says what worked and what didn't
 
@@ -82,8 +87,9 @@ missing. Two worktrees of one repo on the same server look alike to plugins, and
 The plugin runs everything from Orca's plugin worker on this computer, as you:
 
 - `entire`: `--version`, `status`, `trail show`, `trail finding list` and `checkpoint list`, all
-  read-only, with `--json`. It sets `ENTIRE_TELEMETRY_OPTOUT=1`, so these background reads send Entire
-  no usage analytics.
+  read-only, with `--json`. From the panel's confirmed buttons only: `trail approve <number> --branch
+  <branch>` and `trail merge <number> --branch <branch>`, never with `--force`. It sets
+  `ENTIRE_TELEMETRY_OPTOUT=1`, so its calls send Entire no usage analytics.
 - `git diff --shortstat` against the trail's base branch, for the line counts.
 - Orca's own CLI (`terminal show`, `worktree list`, `repo list`, `environment show`), to find the
   focused workspace's path.

@@ -113,7 +113,10 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
 - [ ] 1. Spikes: real trail JSON fixtures (create a test trail), `trail watch` through `wsl.exe` versus
       the 5-minute reaper, the plugin consent flow, latency budget.
 - [ ] 2. v0.1 on shipped Orca: commands (show trail, findings, approve, merge, create, refresh) and
-      notifications when an agent finishes and on trail events.
+      notifications when an agent finishes and on trail events. Approve and merge are panel buttons
+      (handler `entire.act`, two clicks each). Merge is enabled only when `mergeBlockers` finds the
+      change approved, with no failing or pending blocking gate and no conflicts. It never passes
+      `--force`, and Entire checks the gates again on its side.
 - [ ] 3. Trail panel. A stopgap panel (repo status, the trail and its merge gates, recent
       checkpoints, connection check, a ↻ that works while the worker runs) works from a development
       folder. Trail #1 links `plugin-scaffold`; its JSON is `test/fixtures/trail-show.json`, and a

@@ -315,12 +315,15 @@ test('a copied finding carries its severity, place, status, text and reason', ()
   assert.equal(findingsText([{}]), 'Finding')
 })
 
-test("the panel's script parses and asks only for the worker handlers that exist", () => {
+test("the panel's script parses and asks only for the worker handlers that exist", async () => {
   const scripts = [...panelHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])
   assert.equal(scripts.length, 1)
   assert.doesNotThrow(() => new Function(scripts[0]))
-  const asked = [...scripts[0].matchAll(/orca\.plugin\s*\.request\('([^']+)'/g)].map((m) => m[1]).sort()
-  assert.deepEqual(asked, ['entire.data', 'entire.read'])
+  const asked = [...new Set([...scripts[0].matchAll(/orca\.plugin\s*\.request\('([^']+)'/g)].map((m) => m[1]))].sort()
+  assert.deepEqual(asked, ['entire.act', 'entire.data', 'entire.read'])
+  const main = await readFile(new URL('../src/worker/main.mjs', import.meta.url), 'utf8')
+  const handled = [...main.matchAll(/orca\.panels\?\.handle\('([^']+)'/g)].map((m) => m[1]).sort()
+  assert.deepEqual(handled, asked)
 })
 
 test("the panel's plugin version is the manifest's", async () => {

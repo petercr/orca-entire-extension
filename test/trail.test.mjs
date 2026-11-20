@@ -191,3 +191,33 @@ test('a trail without changes or mergeability still summarizes', () => {
   assert.equal(summary.findings, null)
   assert.equal(summary.body.length, 400)
 })
+
+test('merging waits on an approval and every blocking gate, and a merged change has no actions', () => {
+  const fresh = trailSummary(created)
+  assert.equal(fresh.open, true)
+  assert.deepEqual(fresh.blockers, ['Not approved yet (0 of 1)', 'findings: Not evaluated yet'])
+  const done = trailSummary(merged)
+  assert.equal(done.open, false)
+  assert.deepEqual(done.blockers, ['The change is merged'])
+})
+
+// One open change with these gates, as `entire trail show` gives it.
+const withGates = (gates, { mergeable = true, conflicts = 'clean' } = {}) =>
+  trailSummary({
+    status: 'open',
+    changes: [{ current: true, status: 'open', branch: 'feature', mergeability: { mergeable, conflict_status: conflicts, gates } }]
+  })
+const gate = (type, status, extra = {}) => ({ gate_type: type, gate_key: type, blocking: true, status, state: 'evaluated', ...extra })
+
+test('an approved change with nothing blocking may merge, and only then', () => {
+  const approved = gate('approvals', 'passed', { value: { approved: 1, required: 1 } })
+  assert.deepEqual(withGates([approved, gate('checks', 'passed')]).blockers, [])
+  // An advisory gate that failed doesn't block.
+  assert.deepEqual(withGates([approved, gate('checks', 'failed', { blocking: false })]).blockers, [])
+  // A repo without an approvals gate doesn't require one.
+  assert.deepEqual(withGates([gate('up_to_date', 'passed')]).blockers, [])
+  assert.deepEqual(withGates([approved, gate('up_to_date', 'failed', { value: { behind_by: 2 } })]).blockers, ['up to date: 2 behind base'])
+  assert.deepEqual(withGates([approved], { conflicts: 'conflicting' }).blockers, ['Conflicts with the base branch'])
+  // Every gate passed but Entire still says no.
+  assert.deepEqual(withGates([approved], { mergeable: false }).blockers, ['Entire says this change can’t merge yet'])
+})
