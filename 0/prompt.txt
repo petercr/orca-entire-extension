@@ -1,0 +1,26 @@
+it looks like its working better now
+
+---
+
+Go ahead and push and open a PR
+
+---
+
+ok fix all these code review findings:
+### High finding
+
+**Location:** `src/worker/panel.mjs:38-39`
+
+Checking out another branch preserves the worktree ID, so this returns the previous branch’s snapshot before checking its branch; `panel/index.html:1609-1614` does the same. For snapshots younger than a minute, `noteFocus` (`panel/index.html:1584-1591`) skips reading, leaving the previous trail, findings, and action buttons visible. Require a matching branch in both ID lookups.
+
+### Medium finding
+
+**Location:** `src/worker/workspace.mjs:42`
+
+If a local workspace falls outside the capped 500-item listing and any paired server is offline, this returns an unresolved object even when the workspace has an open terminal. `resolveFocusedWorkspace` returns that object at `src/worker/workspace.mjs:14`, bypassing the exact terminal lookup at lines 16-20 that previously resolved it. Preserve the terminal fallback before returning an unresolved ID lookup.
+
+### Medium finding
+
+**Location:** `panel/index.html:1615-1617`
+
+With cached local identity and VPS entries both named `main/main`, focusing an uncached local `main/main` workspace without terminals filters out the local entries and selects the VPS through the name fallback (`panel/index.html:1634-1638`), despite its different known ID. A fresh entry suppresses reading (`panel/index.html:1584-1591`), and actions target that VPS entry (`panel/index.html:1110`). When the context has an ID, reject entries with a different known ID in both this function and `src/worker/panel.mjs:38-40`.
