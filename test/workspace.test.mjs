@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { matchServerWorktrees, matchWorktrees, pairedServers, serverResolution, shortBranch } from '../src/worker/workspace.mjs'
+import { isWorkspace, matchServerWorktreeById, matchServerWorktrees, matchWorktrees, pairedServers, serverResolution, shortBranch } from '../src/worker/workspace.mjs'
 
 test("Orca CLI refs compare with readContext's short branch names", () => {
   assert.equal(shortBranch('refs/heads/feat/trails'), 'feat/trails')
@@ -65,6 +65,29 @@ test('a server workspace with a branch matches by name and branch, like a local 
     ['/home/ubuntu/leadgen']
   )
   assert.deepEqual(matchServerWorktrees(worktrees, repos, { displayName: 'leadgen', branch: 'main', terminals: [] }), [])
+})
+
+test("Orca's workspaceId matches a worktree's id or its identity key", () => {
+  const worktree = {
+    id: 'd735::/home/ubuntu/leadgen',
+    identity: { key: 'wt2:local:ca8a', executionHostId: 'local', instanceId: 'ca8a' }
+  }
+  assert.ok(isWorkspace(worktree, 'd735::/home/ubuntu/leadgen'))
+  assert.ok(isWorkspace(worktree, 'identity:wt2:local:ca8a'))
+  // The desktop may scope a server's identity key to that server; the instance id still names it.
+  assert.ok(isWorkspace(worktree, 'identity:wt2:runtime:c9b8:ca8a'))
+  assert.ok(!isWorkspace(worktree, 'identity:wt2:local:other'))
+  assert.ok(!isWorkspace(worktree, 'd735::/home/ubuntu'))
+  assert.ok(!isWorkspace({ id: 'x' }, 'identity:wt2:local:x'))
+  assert.ok(!isWorkspace(worktree, undefined))
+})
+
+test('a server workspace matches by id whatever its name and branch', () => {
+  const [match, ...rest] = matchServerWorktreeById(worktrees, repos, 'd735::/home/ubuntu/leadgen')
+  assert.equal(rest.length, 0)
+  assert.equal(match.worktree.path, '/home/ubuntu/leadgen')
+  assert.equal(match.repo.displayName, 'leadgen')
+  assert.deepEqual(matchServerWorktreeById(worktrees, repos, 'd735::/home/ubuntu/old'), [])
 })
 
 test('a server match counts only when it is the only one and every server answered', () => {

@@ -11,10 +11,11 @@ export function panelEntry(snapshot) {
   return { ...snapshot, report: reportLines(snapshot) }
 }
 
-// Same path on the same host, or a terminal they share.
+// Same Orca id, same path on the same host, or a terminal they share.
 function sameWorkspace(entry, other) {
   const environment = (e) => e.workspace.server?.environment ?? null
   return (
+    (entry.workspace.id && other.workspace.id === entry.workspace.id) ||
     (entry.workspace.path && other.workspace.path === entry.workspace.path && environment(other) === environment(entry)) ||
     other.workspace.terminals.some((id) => entry.workspace.terminals.includes(id)) ||
     (!other.workspace.path && other.workspace.name === entry.workspace.name && other.workspace.branch === entry.workspace.branch)
@@ -32,7 +33,11 @@ export function mergeEntry(data, entry, { maxChars = MAX_ANSWER_CHARS } = {}) {
 // The entry the panel shows for a readContext result. Keep this the same as findEntry in
 // panel/index.html: the worker uses it to tell whether the panel's entry is fresh enough.
 export function findShown(data, context) {
-  const list = data?.workspaces ?? []
+  // Orca's workspaceId names the workspace exactly. Panels get it only in its `identity:` form, so an
+  // entry with an id of that form belongs to a context that carries the same id, and to no other.
+  const byId = context.workspaceId && (data?.workspaces ?? []).find((entry) => entry.workspace.id === context.workspaceId)
+  if (byId) return byId
+  const list = (data?.workspaces ?? []).filter((entry) => !String(entry.workspace.id ?? '').startsWith('identity:'))
   const ids = context.terminals.map((terminal) => terminal.id)
   // A workspace keeps its terminals when it switches branch, so the branch has to match as well.
   const byTerminal = list.find((entry) => entry.workspace.branch === context.branch && entry.workspace.terminals.some((id) => ids.includes(id)))

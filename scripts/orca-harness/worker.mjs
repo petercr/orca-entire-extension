@@ -5,10 +5,13 @@ import { join } from 'node:path'
 const [pluginRoot, scenario, terminal] = process.argv.slice(2)
 const load = (file) => import(pathToFileURL(join(pluginRoot, 'src', 'worker', file)).href)
 
-// What workspace.readContext returns in each scenario. A paired server's workspace (a VPS) comes as its
-// repo's display name with no branch and no terminals.
+// What workspace.readContext returns in each scenario. Before Orca 1.4.265 a paired server's workspace
+// (a VPS) came as its repo's display name with no branch and no terminals; since then readContext
+// gives workers a workspaceId, the worktree id from `orca worktree list` (with --environment for a
+// server's) or `identity:` and its identity key, alongside the workspace's own name and branch.
 const contexts = {
   repo: { branch: '', displayName: terminal, terminals: [] },
+  id: { workspaceId: terminal, branch: 'main', displayName: 'main', terminals: [] },
   terminal: { branch: 'main', displayName: 'main', terminals: [{ id: terminal }] },
   'no-terminal': { branch: 'main', displayName: 'main', terminals: [] },
   none: null
@@ -19,8 +22,8 @@ if (scenario === 'local-entire') {
   const { runEntire, failureLine } = await load('entire-cli.mjs')
   const result = await runEntire({ kind: 'local', path: pluginRoot }, ['status', '--json']).catch((error) => ({ error }))
   console.log(result.error ? `✗ spawn: ${result.error.message}` : result.code === 0 ? `✓ local entire status (${result.ms} ms): ${result.stdout.slice(0, 160)}` : `✗ ${failureLine(result)}`)
-} else if (!Object.hasOwn(contexts, scenario) || ((scenario === 'terminal' || scenario === 'repo') && !terminal)) {
-  console.log('Scenarios: terminal <handle>, repo <display name>, no-terminal, none, local-entire')
+} else if (!Object.hasOwn(contexts, scenario) || (['terminal', 'repo', 'id'].includes(scenario) && !terminal)) {
+  console.log('Scenarios: terminal <handle>, repo <display name>, id <workspace id>, no-terminal, none, local-entire')
   process.exitCode = 1
 } else {
   const { default: activate } = await load('main.mjs')
