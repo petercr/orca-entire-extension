@@ -220,6 +220,24 @@ test("Orca's workspaceId tells apart workspaces that share main/main", () => {
   assert.deepEqual(cases.map((c) => findShown(data, c)?.at ?? null), ['local again', 'other', 'vps', 'vps'])
   // The panel's context for the VPS workspace has no id; the identity entries aren't its.
   assert.deepEqual(cases.map((c) => findEntry(data, c)?.at ?? null), ['local again', 'other', 'vps', 'vps'])
+
+  // A local main/main that has no entry yet is none of these, though the VPS entry shares its name.
+  const uncached = context('identity:wt2:local:ccc')
+  assert.equal(findShown(data, uncached), null)
+  assert.equal(findEntry(data, uncached), null)
+  // An entry read before Orca gave ids can still be found by name.
+  const old = { workspaces: [entry('main', null, [], 'old')].map((e) => ({ ...e, workspace: { ...e.workspace, branch: 'main' } })) }
+  assert.equal(findShown(old, uncached)?.at, 'old')
+  assert.equal(findEntry(old, uncached)?.at, 'old')
+})
+
+test('a workspace keeps its id across a branch checkout, but not its entry', () => {
+  const onBranch = (branch, at) => ({ ...entry('api', null, ['t1'], at), workspace: { id: 'identity:wt2:local:aaa', name: 'api', branch, path: 'C:\\api', terminals: ['t1'] } })
+  const data = { workspaces: [onBranch('main', 'main read')] }
+  const context = (branch) => ({ workspaceId: 'identity:wt2:local:aaa', displayName: 'api', branch, terminals: [{ id: 't1' }] })
+  for (const c of [context('main'), context('feature')]) assert.equal(findShown(data, c), findEntry(data, c), JSON.stringify(c))
+  assert.equal(findShown(data, context('main'))?.at, 'main read')
+  assert.equal(findShown(data, context('feature')), null)
 })
 
 // The panel's own asking, run against a fake orca and clock. show(context) is what each render does.

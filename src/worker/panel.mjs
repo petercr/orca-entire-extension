@@ -33,11 +33,16 @@ export function mergeEntry(data, entry, { maxChars = MAX_ANSWER_CHARS } = {}) {
 // The entry the panel shows for a readContext result. Keep this the same as findEntry in
 // panel/index.html: the worker uses it to tell whether the panel's entry is fresh enough.
 export function findShown(data, context) {
-  // Orca's workspaceId names the workspace exactly. Panels get it only in its `identity:` form, so an
-  // entry with an id of that form belongs to a context that carries the same id, and to no other.
-  const byId = context.workspaceId && (data?.workspaces ?? []).find((entry) => entry.workspace.id === context.workspaceId)
+  // Orca's workspaceId names the workspace exactly, but a workspace keeps it across a branch checkout,
+  // so the branch has to match as well. An entry with another known id is another workspace. Panels
+  // get the id only in its `identity:` form, so without one only entries of that form are ruled out.
+  const list = (data?.workspaces ?? []).filter((entry) =>
+    context.workspaceId
+      ? !entry.workspace.id || entry.workspace.id === context.workspaceId
+      : !String(entry.workspace.id ?? '').startsWith('identity:')
+  )
+  const byId = context.workspaceId && list.find((entry) => entry.workspace.id === context.workspaceId && entry.workspace.branch === context.branch)
   if (byId) return byId
-  const list = (data?.workspaces ?? []).filter((entry) => !String(entry.workspace.id ?? '').startsWith('identity:'))
   const ids = context.terminals.map((terminal) => terminal.id)
   // A workspace keeps its terminals when it switches branch, so the branch has to match as well.
   const byTerminal = list.find((entry) => entry.workspace.branch === context.branch && entry.workspace.terminals.some((id) => ids.includes(id)))

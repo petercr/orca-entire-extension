@@ -6,37 +6,44 @@ import { orcaCli } from './orca-cli.mjs'
 // is the fallback when it has none. A workspace on a paired Orca server (a VPS) is not in this
 // desktop's runtime at all: older Orcas give its repo's name, an empty branch and no terminals, so
 // the paired servers are asked as well.
-export async function resolveFocusedWorkspace(orca, { signal } = {}) {
+// `cli` stands in for the Orca CLI in tests.
+export async function resolveFocusedWorkspace(orca, { signal, cli = orcaCli } = {}) {
   const context = await orca.host.call('workspace.readContext', {}, { signal })
   if (!context) return { context: null, path: null, via: 'none', candidates: [] }
-  if (context.workspaceId) {
-    const resolved = await resolveById(context, { signal })
-    if (resolved) return resolved
-  }
+  // An id lookup that a silent server left open (or a worktree past the listing's limit) still lets a
+  // terminal name the workspace exactly.
+  const byId = context.workspaceId ? await resolveById(context, { signal, cli }) : null
+  if (byId?.path) return byId
   const [terminal] = context.terminals
   if (terminal) {
-    const result = await orcaCli(['terminal', 'show', '--terminal', terminal.id], { signal })
+    const result = await cli(['terminal', 'show', '--terminal', terminal.id], { signal }).catch((error) => {
+      if (byId) return {}
+      throw error
+    })
     const path = (result.terminal ?? result).worktreePath
     if (path) return { context, path, via: 'terminal', candidates: [path] }
   }
-  const { worktrees, hostScope } = await orcaCli(['worktree', 'list', '--limit', '500'], { signal })
+  // The id is known but a server that didn't answer may hold it: say so rather than guess by name.
+  if (byId) return byId
+  const { worktrees, hostScope } = await cli(['worktree', 'list', '--limit', '500'], { signal })
   const candidates = matchWorktrees(worktrees, context).map((worktree) => worktree.path)
   if (candidates.length > 0 || context.terminals.length > 0) {
     return { context, path: candidates.length === 1 ? candidates[0] : null, via: 'branch', candidates }
   }
-  return resolveOnServers(context, pairedServers(hostScope), { signal })
+  return resolveOnServers(context, pairedServers(hostScope), { signal, cli })
 }
 
-// The workspace readContext's id names, here or on a paired server, or null when no listing has it
-// (a folder workspace, say), and the other ways of finding it apply.
-async function resolveById(context, { signal }) {
-  const { worktrees, hostScope } = await orcaCli(['worktree', 'list', '--limit', '500'], { signal })
+// The workspace readContext's id names, here or on a paired server; an unresolved result (no path)
+// when a server didn't answer; or null when every listing answered and none has it (a folder
+// workspace, say), and the other ways of finding it apply.
+async function resolveById(context, { signal, cli }) {
+  const { worktrees, hostScope } = await cli(['worktree', 'list', '--limit', '500'], { signal })
   const local = worktrees.find((worktree) => !worktree.isArchived && isWorkspace(worktree, context.workspaceId))
   if (local) return { context, path: local.path, via: 'id', candidates: [local.path] }
   const environments = pairedServers(hostScope)
   if (environments.length === 0) return null
   const byId = (worktrees, repos) => matchServerWorktreeById(worktrees, repos, context.workspaceId)
-  const { matches, unreachable } = await listServers(environments, byId, { signal })
+  const { matches, unreachable } = await listServers(environments, byId, { signal, cli })
   // An id names one workspace, so a server that didn't answer can't hold another match.
   if (matches.length === 1) return serverResolution(context, matches)
   return matches.length === 0 && unreachable.length === 0 ? null : serverResolution(context, matches, unreachable)
@@ -61,14 +68,14 @@ export function matchServerWorktreeById(worktrees, repos, workspaceId) {
 }
 
 // Each paired server's repos and worktrees, filtered by `match`, with the servers that didn't answer.
-async function listServers(environments, match, { signal }) {
+async function listServers(environments, match, { signal, cli }) {
   const unreachable = []
   const found = await Promise.all(
     environments.map(async (environment) => {
       try {
         const [{ repos }, { worktrees }] = await Promise.all([
-          orcaCli(['repo', 'list'], { signal, environment }),
-          orcaCli(['worktree', 'list', '--limit', '500'], { signal, environment })
+          cli(['repo', 'list'], { signal, environment }),
+          cli(['worktree', 'list', '--limit', '500'], { signal, environment })
         ])
         return match(worktrees, repos).map((found) => ({ ...found, environment }))
       } catch (error) {
@@ -80,8 +87,9 @@ async function listServers(environments, match, { signal }) {
   return { matches: found.flat(), unreachable }
 }
 
-async function resolveOnServers(context, environments, { signal }) {
-  const { matches, unreachable } = await listServers(environments, (worktrees, repos) => matchServerWorktrees(worktrees, repos, context), { signal })
+async function resolveOnServers(context, environments, { signal, cli }) {
+  const byName = (worktrees, repos) => matchServerWorktrees(worktrees, repos, context)
+  const { matches, unreachable } = await listServers(environments, byName, { signal, cli })
   return serverResolution(context, matches, unreachable)
 }
 
