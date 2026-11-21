@@ -1571,6 +1571,7 @@
         function noteFocus(context, entry) {
           var key = context
             ? JSON.stringify([
+                context.workspaceId || null,
                 context.displayName,
                 context.branch,
                 context.terminals
@@ -1601,7 +1602,21 @@
 
         // Keep this the same as findShown in src/worker/panel.mjs.
         function findEntry(context) {
-          var list = (DATA && DATA.workspaces) || []
+          var all = (DATA && DATA.workspaces) || []
+          // Orca's workspaceId names the workspace exactly, but a workspace keeps it across a branch
+          // checkout, so the branch has to match as well. An entry with another known id is another
+          // workspace. The panel gets the id only in its identity: form, so without one only entries of
+          // that form are ruled out.
+          var list = all.filter(function (entry) {
+            var id = entry.workspace.id
+            return context.workspaceId ? !id || id === context.workspaceId : String(id || '').indexOf('identity:') !== 0
+          })
+          var byId = context.workspaceId
+            ? list.filter(function (entry) {
+                return entry.workspace.id === context.workspaceId && entry.workspace.branch === context.branch
+              })[0]
+            : null
+          if (byId) return byId
           var ids = context.terminals.map(function (terminal) {
             return terminal.id
           })

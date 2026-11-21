@@ -63,6 +63,8 @@ export async function focusedHost(orca, { signal } = {}) {
   const { context, path, via, candidates, server, unreachable = [] } = resolved
   if (!context) return { workspace: null, host: null, problem: 'No workspace is focused' }
   const workspace = {
+    // Orca's id for the workspace, when it gives one; the panel picks the focused entry by it.
+    ...(context.workspaceId ? { id: context.workspaceId } : {}),
     name: context.displayName,
     branch: context.branch,
     terminals: context.terminals.map((terminal) => terminal.id),

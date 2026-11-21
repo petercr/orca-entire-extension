@@ -201,6 +201,45 @@ test("a paired server's workspace is told apart by its server, not by its path a
   assert.equal(findShown({ workspaces: [data.workspaces[0]] }, { displayName: 'leadgen', branch: '', terminals: [] }).at, 'third')
 })
 
+test("Orca's workspaceId tells apart workspaces that share main/main", () => {
+  const withId = (id, at) => ({ ...entry('main', null, [], at), workspace: { id, name: 'main', branch: 'main', path: `/${at}`, terminals: [] } })
+  // A local worktree has an identity id, which panels get too; a paired server's is its worktree id,
+  // which Orca gives workers only.
+  const local = withId('identity:wt2:local:aaa', 'local')
+  const other = withId('identity:wt2:local:bbb', 'other')
+  const vps = withId('d735::/home/ubuntu/leadgen', 'vps')
+  let data = mergeEntry(null, local)
+  data = mergeEntry(data, other)
+  data = mergeEntry(data, vps)
+  assert.equal(data.workspaces.length, 3)
+  data = mergeEntry(data, withId('identity:wt2:local:aaa', 'local again'))
+  assert.deepEqual(data.workspaces.map((e) => e.at), ['local again', 'vps', 'other'])
+
+  const context = (workspaceId) => ({ ...(workspaceId ? { workspaceId } : {}), displayName: 'main', branch: 'main', terminals: [] })
+  const cases = [context('identity:wt2:local:aaa'), context('identity:wt2:local:bbb'), context('d735::/home/ubuntu/leadgen'), context(null)]
+  assert.deepEqual(cases.map((c) => findShown(data, c)?.at ?? null), ['local again', 'other', 'vps', 'vps'])
+  // The panel's context for the VPS workspace has no id; the identity entries aren't its.
+  assert.deepEqual(cases.map((c) => findEntry(data, c)?.at ?? null), ['local again', 'other', 'vps', 'vps'])
+
+  // A local main/main that has no entry yet is none of these, though the VPS entry shares its name.
+  const uncached = context('identity:wt2:local:ccc')
+  assert.equal(findShown(data, uncached), null)
+  assert.equal(findEntry(data, uncached), null)
+  // An entry read before Orca gave ids can still be found by name.
+  const old = { workspaces: [entry('main', null, [], 'old')].map((e) => ({ ...e, workspace: { ...e.workspace, branch: 'main' } })) }
+  assert.equal(findShown(old, uncached)?.at, 'old')
+  assert.equal(findEntry(old, uncached)?.at, 'old')
+})
+
+test('a workspace keeps its id across a branch checkout, but not its entry', () => {
+  const onBranch = (branch, at) => ({ ...entry('api', null, ['t1'], at), workspace: { id: 'identity:wt2:local:aaa', name: 'api', branch, path: 'C:\\api', terminals: ['t1'] } })
+  const data = { workspaces: [onBranch('main', 'main read')] }
+  const context = (branch) => ({ workspaceId: 'identity:wt2:local:aaa', displayName: 'api', branch, terminals: [{ id: 't1' }] })
+  for (const c of [context('main'), context('feature')]) assert.equal(findShown(data, c), findEntry(data, c), JSON.stringify(c))
+  assert.equal(findShown(data, context('main'))?.at, 'main read')
+  assert.equal(findShown(data, context('feature')), null)
+})
+
 // The panel's own asking, run against a fake orca and clock. show(context) is what each render does.
 function panelAsks() {
   let clock = Date.parse('2026-11-05T12:00:00Z')

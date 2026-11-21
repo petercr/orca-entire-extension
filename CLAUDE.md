@@ -26,7 +26,8 @@ Run these with Windows Node from the repo root:
 
 - `node --test`
 - `node scripts/orca-harness/launch.mjs <scenario>`, where the scenario is `no-terminal`, `none`,
-  `local-entire`, `terminal <handle>` with a handle from `orca terminal list --json`, or `repo <name>` for a
+  `local-entire`, `terminal <handle>` with a handle from `orca terminal list --json`, `id <workspace id>`
+  with an id or `identity:<key>` from `orca worktree list --json`, or `repo <name>` for a
   paired server's workspace, named as in `orca repo list --environment <server>`.
 
 From a WSL terminal, `cd "/mnt/c/Users/pcruc/Web Projects/orca-entire-extension"` and call Windows Node
@@ -48,15 +49,19 @@ approval again when the manifest asks for more.
 
 - The worker's env is an allowlist built from Orca's own process: there is no APPDATA (`desktopEnv`
   derives it for `orca.exe`), and Orca needs a restart to see PATH changes.
-- `workspace.readContext` has no path. The worker resolves it from a terminal handle with
-  `orca terminal show`; without a terminal, branch and name match many workspaces.
+- `workspace.readContext` has no path. Since Orca 1.4.265 it gives workers a `workspaceId` (the
+  worktree id from `orca worktree list`, or `identity:<identity key>`), which the worker matches
+  against the local listing, then each paired server's. Panels get the id only in its `identity:` form,
+  so a paired server's workspace reaches the panel without one. Without an id the worker resolves the
+  path from a terminal handle with `orca terminal show`; without a terminal either, branch and name
+  match many workspaces (`main` on `main`). Try it with the harness's `id <workspace id>`.
 - Run `entire` only through `runEntire`, which sets `ENTIRE_TELEMETRY_OPTOUT=1`. Otherwise each call
   starts a detached `entire __send_analytics` child with no console, and on Windows every git it runs
   opens a Windows Terminal window.
 - WSL workspaces arrive as `\\wsl.localhost\<distro>\...` paths. The worker runs `entire` inside WSL
   through `wsl.exe`, which uses the WSL Entire login, not the Windows one.
-- A workspace on a paired Orca server (the VPS) isn't in the desktop runtime: `readContext` gives its repo's
-  name, an empty branch and no terminals, and the Orca CLI reaches it only with `--environment <name>`. The
+- A workspace on a paired Orca server (the VPS) isn't in the desktop runtime: before 1.4.265 `readContext`
+  gave its repo's name, an empty branch and no terminals (now its own name and branch, and its id), and the Orca CLI reaches it only with `--environment <name>`. The
   worker reads its trail and findings with the Windows `entire --repo <origin URL> --branch <branch>`.
   Status, checkpoints and the diff need the checkout, so it runs them over SSH (`ssh -o BatchMode=yes`,
   every remote word shell-quoted) to the server's SSH target: `orca environment show` names its id, and

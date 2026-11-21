@@ -11,10 +11,11 @@ export function panelEntry(snapshot) {
   return { ...snapshot, report: reportLines(snapshot) }
 }
 
-// Same path on the same host, or a terminal they share.
+// Same Orca id, same path on the same host, or a terminal they share.
 function sameWorkspace(entry, other) {
   const environment = (e) => e.workspace.server?.environment ?? null
   return (
+    (entry.workspace.id && other.workspace.id === entry.workspace.id) ||
     (entry.workspace.path && other.workspace.path === entry.workspace.path && environment(other) === environment(entry)) ||
     other.workspace.terminals.some((id) => entry.workspace.terminals.includes(id)) ||
     (!other.workspace.path && other.workspace.name === entry.workspace.name && other.workspace.branch === entry.workspace.branch)
@@ -32,7 +33,16 @@ export function mergeEntry(data, entry, { maxChars = MAX_ANSWER_CHARS } = {}) {
 // The entry the panel shows for a readContext result. Keep this the same as findEntry in
 // panel/index.html: the worker uses it to tell whether the panel's entry is fresh enough.
 export function findShown(data, context) {
-  const list = data?.workspaces ?? []
+  // Orca's workspaceId names the workspace exactly, but a workspace keeps it across a branch checkout,
+  // so the branch has to match as well. An entry with another known id is another workspace. Panels
+  // get the id only in its `identity:` form, so without one only entries of that form are ruled out.
+  const list = (data?.workspaces ?? []).filter((entry) =>
+    context.workspaceId
+      ? !entry.workspace.id || entry.workspace.id === context.workspaceId
+      : !String(entry.workspace.id ?? '').startsWith('identity:')
+  )
+  const byId = context.workspaceId && list.find((entry) => entry.workspace.id === context.workspaceId && entry.workspace.branch === context.branch)
+  if (byId) return byId
   const ids = context.terminals.map((terminal) => terminal.id)
   // A workspace keeps its terminals when it switches branch, so the branch has to match as well.
   const byTerminal = list.find((entry) => entry.workspace.branch === context.branch && entry.workspace.terminals.some((id) => ids.includes(id)))
