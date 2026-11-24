@@ -1,0 +1,18 @@
+ok code review fixes needed:
+### Medium finding
+
+**Location:** `src/worker/trails.mjs:116`
+
+If an off-branch diff starts shortly before the 20-second command deadline (`src/worker/main.mjs:13`), this check enters `diffStat`, whose four possible git attempts each retain a separate 15-second timeout (`src/worker/git.mjs:24-28`, `src/worker/process.mjs:5`). A large diff or slow WSL invocation can therefore keep the snapshot waiting beyond Orca’s 30-second command limit, even when the focused branch’s steps finished successfully. Propagate the remaining budget into git calls and stop fallback attempts when it expires.
+
+### Low finding
+
+**Location:** `src/worker/trails.mjs:112`
+
+For the repository's other open changes, `base` comes straight from Entire's findings (`findings.value?.trail?.base`) and goes to `diff(checkout, base, …)` without the `safeRef` check that `snapshot.mjs` uses for the focused branch. `diffStat`'s second attempt passes `${base}...${to}` as a bare argument, so a trail base such as `--output=<path>` makes `git diff` treat it as an option and create or truncate a file on the user's machine, at a path that ends in `...<branch>`. Wrap the base in `safeRef` here, or validate it inside `diffStat`.
+
+### Low finding
+
+**Location:** `src/worker/trails.mjs:77`
+
+When `repoRef` can't parse the origin URL, the step text includes the first 80 characters of the raw URL. Credential-bearing URLs (`REDACTED`, or `REDACTED`) fail the regex, because the userinfo has a colon or the host isn't GitHub, so the token ends up in the panel, in the plugin Logs through `connectionReport`, and in the "Check connection" notification. Strip the userinfo (or leave the URL out) before putting it in the message.
