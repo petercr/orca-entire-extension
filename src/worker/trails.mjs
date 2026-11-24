@@ -26,6 +26,12 @@ export function repoRef(url) {
   return null
 }
 
+// A clone URL may carry a token before its host (https://x-access-token:ghp_…@github.com/o/r.git, or
+// user:token@host:path), which must reach no message, log or notification.
+export function withoutCredentials(url) {
+  return String(url).replace(/^((?:[a-z][\w+.-]*:\/\/)?)[^/@]*@/i, '$1')
+}
+
 // A change's repository is its name, or owner/name; compare by the name.
 function sameRepository(repository, name) {
   const value = String(repository ?? '').toLowerCase()
@@ -74,7 +80,7 @@ export async function collectTrails(host, { origin, current = null, branch = nul
   const step = { key: 'trails', label: 'Other trails', optional: true, ok: false }
   const started = now()
   const ref = repoRef(origin)
-  if (!ref) return { step: { ...step, text: origin ? `can't tell the Entire project from the origin URL ${String(origin).slice(0, 80)}` : 'no origin remote to list trails for' }, trails: [] }
+  if (!ref) return { step: { ...step, text: origin ? `can't tell the Entire project from the origin URL ${withoutCredentials(origin).slice(0, 80)}` : 'no origin remote to list trails for' }, trails: [] }
   const late = () => now() >= deadline
   if (late()) return { step: { ...step, text: 'not checked: the read was out of time' }, trails: [] }
   // A call that starts gets the time left plus a little, so a slow one can't hold the answer past it.
@@ -113,7 +119,7 @@ export async function collectTrails(host, { origin, current = null, branch = nul
       const findings = await call(findingArgs)
       if (!findings.ok) console.error(`Findings of trail #${trail.number} on ${change.branch}: ${findings.text}`)
       const base = findings.ok ? findings.value?.trail?.base : null
-      const stat = checkout && base && !late() ? await diff(checkout, base, { head: change.branch, signal }) : null
+      const stat = checkout && base && !late() ? await diff(checkout, base, { head: change.branch, deadline, signal }) : null
       return { findings: findings.ok ? findings.value : null, diff: stat }
     },
     late

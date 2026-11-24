@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { collectTrails, openChanges, repoRef, TRAIL_LIMIT } from '../src/worker/trails.mjs'
+import { collectTrails, openChanges, repoRef, TRAIL_LIMIT, withoutCredentials } from '../src/worker/trails.mjs'
 
 const fixture = async (name) => JSON.parse(await readFile(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'))
 
@@ -76,7 +76,7 @@ test('the other open changes of the repository come summarized, newest trail fir
   const older = { number: 400, title: 'Older', status: 'open', changes: [{ repository: 'app', branch: 'fix', number: 7, status: 'open', mergeability: { mergeable: false, gates: [{ gate_type: 'approvals', gate_key: 'approvals', blocking: true, status: 'failed', state: 'evaluated', value: { approved: 0, required: 1 } }] } }] }
   const { calls, run } = fakeEntire({ items: [{ number: 500 }, { number: 400 }], trails: [trail, older] })
   const diffs = []
-  const diff = async (host, base, { head }) => (diffs.push([base, head]), { files: 1, additions: 2, deletions: 3 })
+  const diff = async (host, base, { head, deadline }) => (diffs.push([base, head]), assert.equal(deadline, Infinity), { files: 1, additions: 2, deletions: 3 })
   const { step, trails } = await collectTrails(local, { origin, current: trail, branch: 'feature-a', checkout: local, run, diff })
   assert.equal(step.ok, true)
   assert.equal(step.text, '2 other open changes in this repository')
@@ -127,6 +127,11 @@ test('without an origin the step says so, and a failed listing or show is report
   assert.match(none.step.text, /no origin remote/)
   const strange = await collectTrails(local, { origin: 'https://gitlab.com/a/b.git', run: async () => assert.fail('no call') })
   assert.match(strange.step.text, /can't tell the Entire project/)
+  // A token in the URL stays out of the message, which reaches the panel, the Logs and a notification.
+  const secret = await collectTrails(local, { origin: 'https://x-access-token:ghp_abc@gitlab.com/a/b.git', run: async () => assert.fail('no call') })
+  assert.equal(secret.step.text, "can't tell the Entire project from the origin URL https://gitlab.com/a/b.git")
+  assert.equal(withoutCredentials('user:token@host.example:a/b.git'), 'host.example:a/b.git')
+  assert.equal(withoutCredentials('git@github.com:a/b.git'), 'github.com:a/b.git')
 
   const refused = await collectTrails(local, { origin, run: async () => ({ code: 1, stdout: '', stderr: 'not logged in' }) })
   assert.deepEqual([refused.step.ok, refused.step.text, refused.trails], [false, 'not logged in', []])
