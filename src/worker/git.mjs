@@ -17,11 +17,16 @@ export function parseShortstat(out) {
   return { files: count(/(\d+) files? changed/), additions: count(/(\d+) insertions?/), deletions: count(/(\d+) deletions?/) }
 }
 
-// The branch's changes against its base, as Entire's web view shows them. Null when git can't tell.
-export async function diffStat(host, base, { signal } = {}) {
-  for (const ref of [`origin/${base}`, base]) {
-    const result = await runGit(host, ['diff', '--shortstat', `${ref}...HEAD`], { signal }).catch(() => null)
-    if (result?.code === 0) return parseShortstat(result.stdout)
+// The branch's changes against its base, as Entire's web view shows them. `head` is the checked-out
+// branch, or another branch's name: its remote-tracking ref, then a local branch, when the checkout has
+// one. Null when git can't tell.
+export async function diffStat(host, base, { head = 'HEAD', signal } = {}) {
+  const heads = head === 'HEAD' ? ['HEAD'] : safeRef(head) ? [`origin/${head}`, head] : []
+  for (const to of heads) {
+    for (const from of [`origin/${base}`, base]) {
+      const result = await runGit(host, ['diff', '--shortstat', `${from}...${to}`], { signal }).catch(() => null)
+      if (result?.code === 0) return parseShortstat(result.stdout)
+    }
   }
   return null
 }

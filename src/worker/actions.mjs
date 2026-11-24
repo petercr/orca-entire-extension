@@ -32,11 +32,17 @@ export function confirmedEntry(data, { path, environment }) {
   return (data?.workspaces ?? []).find((entry) => entry.workspace.path === path && (entry.workspace.server?.environment ?? null) === environment) ?? null
 }
 
+// The trails the panel lists for an entry: the focused branch's and the repository's other open changes.
+export function shownTrails(entry) {
+  const data = entry?.data ?? {}
+  return Array.isArray(data.trails) ? data.trails : data.trail ? [data.trail] : []
+}
+
 // That workspace must still show the trail the click was for, and for a merge, nothing may block it.
 export function checkShown(request, entry) {
-  const value = entry?.data?.trail
   const { action, trail, branch } = request
-  if (!value || value.number !== trail || value.branch !== branch) {
+  const value = shownTrails(entry).find((shown) => shown?.number === trail && shown.branch === branch)
+  if (!value) {
     throw new Error(`That workspace no longer shows trail #${trail} on ${branch}, so nothing was done. Check the panel and try again.`)
   }
   if (!value.open) throw new Error(`Trail #${trail}'s change on ${branch} isn't open, so there is nothing to ${ACTIONS[action].verb}.`)

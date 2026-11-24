@@ -6,9 +6,12 @@ const FINDING_LIMIT = 20
 const TEXT_LIMIT = 200
 const LIST_LIMIT = 30
 
-export function trailSummary(trail, { findings = null, diff = null } = {}) {
+// `branch` (with `repository`) names the change to summarize when the trail wasn't reached through
+// one, as for the repository's other open changes; otherwise the change Entire marked current.
+export function trailSummary(trail, { findings = null, diff = null, branch: wanted = null, repository = null } = {}) {
   const changes = Array.isArray(trail.changes) ? trail.changes : []
-  const current = changes.find((change) => change.current) ?? changes.find((change) => change.mergeability) ?? null
+  const named = wanted ? changes.find((change) => change.branch === wanted && (!repository || change.repository === repository)) ?? null : null
+  const current = named ?? changes.find((change) => change.current) ?? changes.find((change) => change.mergeability) ?? null
   const about = findings?.trail ?? {}
   const summary = {
     number: trail.number ?? null,

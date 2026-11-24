@@ -42,6 +42,16 @@ test('an action runs only on the trail its workspace shows, and a merge only wit
   assert.throws(() => checkShown(merge, shown({ blockers: undefined })), /refresh the panel/)
 })
 
+test("an action finds its trail among the repository's other open changes too", () => {
+  const listed = { data: { trail: trail(), trails: [trail(), trail({ number: 9, branch: 'other' }), trail({ number: 9, branch: 'third', open: false })] } }
+  assert.doesNotThrow(() => checkShown({ action: 'approve', trail: 9, branch: 'other' }, listed))
+  assert.doesNotThrow(() => checkShown({ action: 'merge', trail: 7, branch: 'feature' }, listed))
+  assert.throws(() => checkShown({ action: 'approve', trail: 9, branch: 'third' }, listed), /isn't open/)
+  assert.throws(() => checkShown({ action: 'approve', trail: 9, branch: 'feature' }, listed), /no longer shows trail #9 on feature/)
+  // Data from before the list existed still works by the focused branch's trail.
+  assert.doesNotThrow(() => checkShown({ action: 'approve', trail: 7, branch: 'feature' }, shown()))
+})
+
 test('Entire gets the trail number and branch, and a paired server also gets the repository', () => {
   const request = { action: 'merge', trail: 7, branch: 'feature' }
   assert.deepEqual(actionArgs(request, { kind: 'wsl' }), ['trail', 'merge', '7', '--branch', 'feature'])

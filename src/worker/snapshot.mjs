@@ -1,8 +1,9 @@
 import { failureLine, runEntire } from './entire-cli.mjs'
-import { diffStat, safeRef } from './git.mjs'
+import { diffStat, runGit, safeRef } from './git.mjs'
 import { serverHost, workspaceHost } from './hosts.mjs'
 import { serverSshTarget } from './ssh-targets.mjs'
 import { trailSummary } from './trail.mjs'
+import { collectTrails } from './trails.mjs'
 import { resolveFocusedWorkspace } from './workspace.mjs'
 
 const VERSION = { key: 'version', label: 'Entire CLI', args: ['--version'], parse: (out) => out.trim().split('\n')[0] }
@@ -95,25 +96,47 @@ export async function focusedHost(orca, { signal } = {}) {
   return { workspace, host, problem: null }
 }
 
-// Everything the panel and "Entire: Check connection" show for the focused workspace.
-export async function collectSnapshot(orca, { signal } = {}) {
+// Everything the panel and "Entire: Check connection" show for the focused workspace. Past `deadline`
+// (a Date.now() time) the read of the repository's other trails stops starting calls, so a command
+// answers within Orca's limit.
+export async function collectSnapshot(orca, { signal, deadline = Infinity } = {}) {
   const snapshot = { at: new Date().toISOString(), workspace: null, problem: null, steps: [], data: {} }
   const { workspace, host, problem } = await focusedHost(orca, { signal })
   if (problem) return { ...snapshot, workspace, problem }
 
   const version = await runStep(host, VERSION, signal)
   if (!version.ok) return { ...snapshot, workspace, steps: [version.step] }
-  const [findings, ...results] = await Promise.all([FINDINGS, ...STEPS].map((step) => runStep(host, step, signal)))
+  const checkout = host.kind === 'server' ? host.remote : host
+  const steps = STEPS.map((step) => runStep(host, step, signal))
+  const current = steps[STEPS.findIndex((step) => step.key === 'trail')].then((result) => (result.ok ? result.value : null))
+  // The repository's other open changes, listed while the steps run and shown after the focused
+  // branch's: the panel lists them all. Their line counts need git on the checkout, which over SSH
+  // would be one round trip each, so only local.
+  const branch = host.kind === 'server' ? host.branch : workspace.branch
+  const others = originUrl(host, checkout, signal).then((origin) =>
+    collectTrails(host, { origin, current, branch, checkout: checkout?.kind === 'ssh' ? null : checkout, deadline, signal })
+  )
+  const [findings, ...results] = await Promise.all([runStep(host, FINDINGS, signal), ...steps])
   const data = Object.fromEntries(results.filter((result) => result.ok).map((result) => [result.step.key, result.value]))
   if (data.checkpoints) data.checkpoints = data.checkpoints.slice(0, CHECKPOINT_LIMIT)
   if (data.trail) {
     const found = findings.ok ? findings.value : null
     const base = safeRef(found?.trail?.base)
-    const checkout = host.kind === 'server' ? host.remote : host
     const diff = base && checkout ? await diffStat(checkout, base, { signal }) : null
-    data.trail = trailSummary(data.trail, { findings: found, diff })
+    data.trail = { ...trailSummary(data.trail, { findings: found, diff }), here: true }
   }
-  return { ...snapshot, workspace, steps: [version.step, ...results.map((result) => result.step)], data }
+  const { step: trailsStep, trails } = await others
+  data.trails = [...(data.trail ? [data.trail] : []), ...trails]
+  return { ...snapshot, workspace, steps: [version.step, ...results.map((result) => result.step), trailsStep], data }
+}
+
+// The workspace's origin URL, which names its repository and project on Entire. A paired server's
+// workspace carries it; a checkout answers git.
+async function originUrl(host, checkout, signal) {
+  if (host.kind === 'server') return host.repo
+  if (!checkout) return null
+  const result = await runGit(checkout, ['config', '--get', 'remote.origin.url'], { signal }).catch(() => null)
+  return result?.code === 0 ? result.stdout.trim() || null : null
 }
 
 function unresolved(context, via, candidates, unreachable) {

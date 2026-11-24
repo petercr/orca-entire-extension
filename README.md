@@ -16,7 +16,11 @@ which write to Entire only when you click and then confirm. It never creates or 
 - the repo's Entire status and any active agent sessions
 - the branch's trail: its change, the code review, the merge gates (approvals, checks, findings, up to
   date) and the findings, each of which you can copy, one at a time or all together
-- **Approve** and **Merge** buttons for the trail's change. Each asks you to click again to confirm.
+- the repo's other open changes, when it has several trails or pull requests in flight: a list above
+  the trail, one row per open change with its branch and merge state. Pick one to see it in full and
+  act on it, whichever branch is checked out. The panel checks the newest 10 open trails, and when
+  that runs long it shows the ones read in time and says how many it skipped.
+- **Approve** and **Merge** buttons for the shown change. Each asks you to click again to confirm.
   Merge stays greyed out until the change is approved (when the repo needs approvals), no blocking
   gate is failing or pending, and there are no conflicts; the line under it says what it's waiting on.
   Entire checks the gates again before it merges, and the plugin never forces a merge.

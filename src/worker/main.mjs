@@ -8,6 +8,10 @@ import { collectSnapshot } from './snapshot.mjs'
 
 // Entire writes its checkpoint data as an agent stops, so let it settle before reading.
 const AGENT_SETTLE_MS = 3000
+// How long a read may keep checking the repository's other trails. Orca drops a command's answer after
+// 30 s, and the panel waits 100 s for its request; the focused branch's own steps come first either way.
+const COMMAND_BUDGET_MS = 20_000
+const PANEL_BUDGET_MS = 60_000
 
 export default function activate(orca) {
   const notify = (notice, signal) =>
@@ -27,8 +31,8 @@ export default function activate(orca) {
 
   // Each snapshot's report also goes to the plugin's Logs, since the command palette drops a
   // command's result.
-  const collect = async (signal) => {
-    const snapshot = await collectSnapshot(orca, { signal })
+  const collect = async (budgetMs, signal) => {
+    const snapshot = await collectSnapshot(orca, { signal, deadline: Date.now() + budgetMs })
     console.log(connectionReport(orca, snapshot))
     return snapshot
   }
@@ -41,7 +45,7 @@ export default function activate(orca) {
   }
 
   const panel = createPanelData({
-    collect: () => collect().then(announceIfAdded),
+    collect: () => collect(PANEL_BUDGET_MS).then(announceIfAdded),
     readContext: () => orca.host.call('workspace.readContext', {})
   })
 
@@ -69,9 +73,9 @@ export default function activate(orca) {
     return { message, data }
   })
 
-  // A command must answer within 30 seconds, so it reads on its own, under its own signal.
+  // A command must answer within 30 seconds, so it reads on its own, under its own signal and budget.
   async function refresh(signal) {
-    const snapshot = announceIfAdded(panel.add(await collect(signal)))
+    const snapshot = announceIfAdded(panel.add(await collect(COMMAND_BUDGET_MS, signal)))
     return connectionReport(orca, snapshot)
   }
 
