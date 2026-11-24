@@ -527,6 +527,51 @@
         color: var(--muted);
         overflow-wrap: anywhere;
       }
+      /* The repository's open trails, one row each; the picked one shows below. */
+      .picker {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 2px 6px 6px 22px;
+      }
+      .pick {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-width: 0;
+        padding: 4px 8px 4px 6px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .pick:hover {
+        background: var(--hover);
+      }
+      .pick.picked {
+        border-color: var(--border);
+        background: var(--card);
+      }
+      .pick .num {
+        flex: none;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pick.picked .num {
+        color: var(--fg);
+      }
+      .pick .stack {
+        flex: 1;
+        min-width: 0;
+      }
+      .pick .pill {
+        font-weight: 500;
+      }
       .empty.bad {
         color: var(--bad);
       }
@@ -742,6 +787,9 @@
         var armTimer = null
         var acting = null
         var outcome = null
+        // The trail picked in each workspace, as 'number:branch' by the workspace's key, when the user
+        // picked one other than the focused branch's.
+        var picked = {}
 
         function el(tag, className, text) {
           var node = document.createElement(tag)
@@ -1050,6 +1098,63 @@
           return JSON.stringify([workspaceOf(entry), value.number, value.branch])
         }
 
+        function trailId(value) {
+          return value.number + ':' + value.branch
+        }
+
+        // The trails the worker found for the workspace: the focused branch's first (here), then the
+        // repository's other open changes (src/worker/trails.mjs).
+        function trailsOf(entry) {
+          var list = entry.data.trails
+          if (list && list.length) return list
+          return entry.data.trail ? [entry.data.trail] : []
+        }
+
+        // The trail the panel shows: the one picked in this workspace while the worker still lists it,
+        // else the focused branch's.
+        function pickedTrail(entry) {
+          var list = trailsOf(entry)
+          var want = picked[JSON.stringify(workspaceOf(entry))]
+          var found = want
+            ? list.filter(function (value) {
+                return trailId(value) === want
+              })[0]
+            : null
+          if (found) return found
+          return list.filter(function (value) {
+            return value.here
+          })[0] || null
+        }
+
+        // One row per trail, when there is more to show than the focused branch's own trail.
+        function trailPicker(entry, selected) {
+          var list = trailsOf(entry)
+          if (!list.length || (list.length === 1 && list[0].here)) return null
+          var key = JSON.stringify(workspaceOf(entry))
+          var body = el('div', 'picker')
+          list.forEach(function (value) {
+            var state = mergeState(value)
+            var isPicked = Boolean(selected) && trailId(selected) === trailId(value)
+            var button = el('button', 'pick' + (isPicked ? ' picked' : ''))
+            button.type = 'button'
+            button.setAttribute('aria-pressed', isPicked ? 'true' : 'false')
+            var where = [value.branch, value.here ? 'this branch' : null].filter(Boolean).join(' · ')
+            add(
+              button,
+              el('span', 'num', value.number ? '#' + value.number : '—'),
+              add(el('span', 'stack'), el('div', 'clip', value.title || 'Untitled trail'), el('div', 'meta mono clip', where)),
+              el('span', 'pill ' + state.tone, state.badge)
+            )
+            button.title = (value.title || 'Untitled trail') + '\n' + where
+            button.addEventListener('click', function () {
+              picked[key] = trailId(value)
+              rerender()
+            })
+            add(body, button)
+          })
+          return body
+        }
+
         // Approve and Merge, while the change is open. Merge stays off until the worker finds the change
         // approved with nothing blocking (blockers in src/worker/trail.mjs); its title says why.
         function actions(value, entry) {
@@ -1355,7 +1460,7 @@
           return items.map(findingText).join('\n\n---\n\n')
         }
 
-        function findingsList(findings) {
+        function findingsList(findings, value) {
           var counts = [findings.open + ' open', findings.resolved ? findings.resolved + ' resolved' : null, findings.dismissed ? findings.dismissed + ' dismissed' : null]
           var copyAll = findings.items.length
             ? copyButton(findings.items.length === 1 ? 'Copy the finding' : 'Copy all ' + findings.items.length + ' findings', function () {
@@ -1365,14 +1470,14 @@
           var body = add(el('div'), add(el('div', 'spread heading-row'), el('span', 'card-title', 'Findings'), add(el('div', 'tags'), el('span', 'meta', counts.filter(Boolean).join(' · ')), copyAll)))
           if (!findings.items.length) return add(body, el('div', 'empty', 'No findings on this branch.'))
           findings.items.forEach(function (finding) {
-            add(body, findingCard(finding))
+            add(body, findingCard(finding, value))
           })
           return body
         }
 
         // Collapsed: severity, status, confidence, the defect and where. Open: the agent's full text and
         // how the finding was resolved or why it was dismissed.
-        function findingCard(finding) {
+        function findingCard(finding, value) {
           var severity = finding.severity ? el('span', 'sev ' + (finding.severity === 'high' ? 'bad' : finding.severity === 'medium' ? 'warn' : ''), finding.severity) : null
           var status = finding.status && finding.status !== 'open' ? el('span', 'pill ' + (finding.status === 'resolved' ? 'ok' : ''), sentence(finding.status)) : null
           var stale = finding.stale ? titled(el('span', 'pill', 'Stale'), 'Found on an earlier version of the code') : null
@@ -1389,22 +1494,30 @@
           )
           var text = finding.body && finding.body !== finding.title ? el('div', 'text', finding.body) : null
           var reason = finding.reason ? add(el('div', 'reason ' + (finding.status === 'resolved' ? 'ok' : '')), el('b', null, sentence(finding.status || 'note') + ': '), document.createTextNode(finding.reason)) : null
-          var id = 'finding:' + [finding.file, finding.line, finding.title].join(':')
+          var id = 'finding:' + [value.number, value.branch, finding.file, finding.line, finding.title].join(':')
           return add(disclosure(id, 'finding card'), summary, text || reason ? add(el('div', 'finding-body'), text, reason) : null)
         }
 
+        // Why the focused branch has no trail to show.
+        function noTrail(entry) {
+          var s = step(entry, 'trail')
+          var missing = !s || /no discoverable|no trail|not on Entire/i.test(s.text)
+          return titled(el('div', missing ? 'empty' : 'empty bad', missing ? 'No trail for this branch.' : s.text), s && s.text)
+        }
+
         // The worker summarizes `entire trail show` and `entire trail finding list` (src/worker/trail.mjs).
+        // With several trails in the repository, the picker comes first and the picked one's detail after.
         function trail(entry) {
-          var value = entry.data.trail
-          if (!value) {
-            var s = step(entry, 'trail')
-            var missing = !s || /no discoverable|no trail|not on Entire/i.test(s.text)
-            return titled(el('div', missing ? 'empty' : 'empty bad', missing ? 'No trail for this branch.' : s.text), s && s.text)
-          }
-          var body = add(el('div'), changeCard(value))
+          var value = pickedTrail(entry)
+          var body = el('div')
+          if (!value) add(body, noTrail(entry))
+          add(body, trailPicker(entry, value))
+          if (!value) return body
+          if (!value.here) add(body, el('div', 'empty', 'On ' + value.branch + ', not the branch checked out here.'))
+          add(body, changeCard(value))
           if (value.merge && value.merge.review) add(body, reviewCard(value.merge.review))
           add(body, mergeCard(value, entry))
-          if (value.findings) add(body, findingsList(value.findings))
+          if (value.findings) add(body, findingsList(value.findings, value))
           value.changes
             .filter(function (change) {
               return !change.current
@@ -1525,7 +1638,7 @@
           var entry = context ? findEntry(context) : null
           noteFocus(context, entry)
           var problem = readError && readError.code + ': ' + readError.message
-          var signature = JSON.stringify([context, entry && entry.at, error && error.code, reads, refreshing, problem, armed, acting, outcome, Math.floor(Date.now() / 60000)])
+          var signature = JSON.stringify([context, entry && entry.at, error && error.code, reads, refreshing, problem, armed, acting, outcome, picked, Math.floor(Date.now() / 60000)])
           if (signature === shown) return
           shown = signature
           root.textContent = ''
@@ -1553,8 +1666,10 @@
           var active = (status && status.active_sessions) || []
           if (active.length) add(root, section('sessions', 'Sessions', String(active.length), sessions(status), true))
           else if (!status) add(root, unread(step(entry, 'status')))
-          var value = entry.data.trail
-          add(root, section('trail', value && value.number ? 'Trail #' + value.number : 'Trail', trailBadge(value), trail(entry), true))
+          // The section names the picked trail; with none picked and several listed, how many there are.
+          var value = pickedTrail(entry)
+          var listed = trailsOf(entry).length
+          add(root, section('trail', value && value.number ? 'Trail #' + value.number : listed > 1 ? 'Trails' : 'Trail', value ? trailBadge(value) : listed > 1 ? String(listed) : '', trail(entry), true))
           var list = entry.data.checkpoints
           add(root, section('checkpoints', 'Checkpoints', list ? String(list.length) : '', list ? checkpoints(list) : unread(step(entry, 'checkpoints')), false))
           var bad = failing(entry)

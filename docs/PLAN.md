@@ -124,7 +124,12 @@ plugin is the only one. For GitHub repos it sits beside Orca's GitHub support.
       web view (change, code review, merge gates, findings) from `trail show` and `trail finding list`,
       plus `git diff --shortstat` for the line counts. Not shown: the web view's Confidence, Risk,
       Drift and Security scores, which no CLI command or API type exposes. Since host API 1.2 the
-      panel asks its worker for the data, so it works installed too.
+      panel asks its worker for the data, so it works installed too. A repo with several trails or
+      PRs open lists every open change (`trail list --project` from the origin URL, then one `trail
+      show` per trail, newest 10) above the trail, and the picked one's detail and buttons follow.
+      That list is read alongside the branch's own steps and under a deadline (20 s for a command,
+      60 s for the panel), so a slow read answers with what it got and says what it skipped
+      (branch `trail-actions`, 2026-11-24).
 - [ ] 4. Trails tab on the Tasks page and a settings form (Orca #26282).
 - [ ] 5. Deeper: status bar item, forge provider for `entire://` remotes, Entire agent hooks and skills,
       checkpoints, `entire why`, `entire review`.

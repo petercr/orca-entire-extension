@@ -184,6 +184,28 @@ test('findings keep their text, confidence, status and how they were resolved, o
   assert.equal(findings.resolved, 1)
 })
 
+test('a named branch picks its change over the one Entire marked current', () => {
+  const twice = {
+    number: 5,
+    status: 'open',
+    changes: [
+      { repository: 'app', branch: 'a', number: 1, status: 'merged', current: true },
+      { repository: 'app', branch: 'b', number: 2, status: 'open', mergeability: { mergeable: true, gates: [] } },
+      { repository: 'lib', branch: 'b', number: 3, status: 'open' }
+    ]
+  }
+  assert.deepEqual([trailSummary(twice).change, trailSummary(twice).open], [1, false])
+  const named = trailSummary(twice, { branch: 'b', repository: 'app' })
+  assert.deepEqual([named.change, named.branch, named.open, named.blockers], [2, 'b', true, []])
+  assert.deepEqual(
+    named.changes.map((change) => change.current),
+    [false, true, false]
+  )
+  assert.equal(trailSummary(twice, { branch: 'b' }).change, 2)
+  // A branch the trail doesn't have falls back on the current change.
+  assert.equal(trailSummary(twice, { branch: 'zzz' }).change, 1)
+})
+
 test('a trail without changes or mergeability still summarizes', () => {
   const summary = trailSummary({ number: 2, title: 'Intent only', status: 'open', body: 'x'.repeat(1000) })
   assert.deepEqual(summary.changes, [])

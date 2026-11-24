@@ -340,6 +340,35 @@ test('with nothing to show, the panel retries a failed first read after 5 minute
   assert.equal(requests.length, 1, 'retried again')
 })
 
+// The panel's choice of trail, with its `picked` state.
+const trailPicking = (picked) =>
+  new Function(
+    'picked',
+    `${['workspaceOf', 'trailId', 'trailsOf', 'pickedTrail'].map(panelFunction).join('\n')}\nreturn { pickedTrail: pickedTrail, trailsOf: trailsOf }`
+  )(picked)
+
+test("the panel shows the focused branch's trail unless another listed one was picked in that workspace", () => {
+  const here = { number: 7, branch: 'feature', here: true }
+  const other = { number: 9, branch: 'other' }
+  const withTrails = (trails, path = 'C:\\app') => ({ workspace: { path, terminals: [] }, data: { trail: trails[0] && trails[0].here ? trails[0] : null, trails } })
+  const picked = {}
+  const panel = trailPicking(picked)
+  assert.equal(panel.pickedTrail(withTrails([here, other])), here)
+  picked[JSON.stringify({ path: 'C:\\app', environment: null })] = '9:other'
+  assert.equal(panel.pickedTrail(withTrails([here, other])), other)
+  // Another workspace keeps its own choice; a pick the worker no longer lists falls back.
+  assert.equal(panel.pickedTrail(withTrails([here, other], 'C:\\elsewhere')), here)
+  assert.equal(panel.pickedTrail(withTrails([here])), here)
+  // No trail on the focused branch: nothing shows until one is picked.
+  delete picked[JSON.stringify({ path: 'C:\\app', environment: null })]
+  assert.equal(panel.pickedTrail(withTrails([other])), null)
+  picked[JSON.stringify({ path: 'C:\\app', environment: null })] = '9:other'
+  assert.equal(panel.pickedTrail(withTrails([other])), other)
+  // Data from a worker without the list still shows the branch's trail.
+  assert.deepEqual(panel.trailsOf({ workspace: { path: 'C:\\app' }, data: { trail: here } }), [here])
+  assert.deepEqual(panel.trailsOf({ workspace: { path: 'C:\\app' }, data: {} }), [])
+})
+
 // The panel's own text for the copy buttons, built from the functions it uses.
 const findingsText = new Function(`${['words', 'sentence', 'findingWhere', 'findingText', 'findingsText'].map(panelFunction).join('\n')}\nreturn findingsText`)()
 

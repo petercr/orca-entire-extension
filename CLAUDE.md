@@ -11,7 +11,10 @@ results, the architecture, the phases and what we have asked the Orca team for.
 - `src/worker/`: the worker, plain ES modules with no build step. `main.mjs` registers the commands
   and the panel's request handlers (`entire.read`, `entire.data`, and `entire.act` for the panel's
   Approve and Merge buttons, in `actions.mjs`). When Merge is enabled is decided once, by
-  `mergeBlockers` in `trail.mjs`; the panel only shows its result.
+  `mergeBlockers` in `trail.mjs`; the panel only shows its result. `trails.mjs` finds the repo's
+  other open changes (`trail list --project` by the origin URL, then `trail show` per trail) so a
+  repo with several trails or PRs open shows each in `data.trails`, the focused branch's first
+  (`here: true`); `data.trail` stays the focused branch's. The panel picks one from the list.
 - `panel/index.html`: the right-sidebar panel, one HTML file with its script inline. It asks the
   worker for Entire's data with `orca.plugin.request`. Its `PLUGIN_VERSION`, used in the report-a-problem link, has
   to match the manifest's `version` (a test checks).
@@ -69,6 +72,13 @@ approval again when the manifest asks for more.
   with Orca's `node:sqlite`. The target's key must be in the Windows ssh-agent (`ssh-add`), and the env
   needs ProgramData (`desktopEnv` derives it) or Windows ssh exits 255 silently. Try it with the
   harness's `repo <name>`.
+- `entire trail list` needs `--project` (`gh/<owner>` or `et/<project>`), which the worker parses
+  from the origin URL (`repoRef` in `trails.mjs`), and its items carry no changes, so each listed
+  trail costs a `trail show` (about 1.5 s on Windows), at most `TRAIL_LIMIT` of the newest. A trail
+  stays `open` after its change merges, so only the shows tell which changes are open. The read runs
+  alongside the focused branch's steps and under a deadline (`COMMAND_BUDGET_MS` and
+  `PANEL_BUDGET_MS` in `main.mjs`): past it no new call starts, the step says how many trails were
+  left, and each call gets only the time left, so a slow WSL read still answers a command in 30 s.
 - A command must answer within 30 seconds, and idle workers stop after 5 minutes. A panel request
   may take up to 120 seconds (the panel asks for 100), and it starts a stopped worker, whose
   in-memory data is then empty: the panel keeps showing what it has while the worker reads again.
