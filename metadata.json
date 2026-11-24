@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M87KWVW94A37J14D6XASZ439",
+  "strategy": "manual-commit",
+  "branch": "trail-actions",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "docs/PLAN.md",
+    "panel/index.html",
+    "src/worker/actions.mjs",
+    "src/worker/git.mjs",
+    "src/worker/main.mjs",
+    "src/worker/snapshot.mjs",
+    "src/worker/trail.mjs",
+    "src/worker/trails.mjs",
+    "test/actions.test.mjs",
+    "test/panel.test.mjs",
+    "test/trail.test.mjs",
+    "test/trails.test.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1096,
+    "cache_creation_tokens": 318502,
+    "cache_read_tokens": 4788960,
+    "output_tokens": 65377,
+    "api_call_count": 38
+  },
+  "redaction": {
+    "replacements": 153,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 150,
+      "key_context": 3,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

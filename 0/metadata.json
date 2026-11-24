@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.12.3-nightly.202610300619.cea1b3cee",
+  "checkpoint_id": "01M87KWVW94A37J14D6XASZ439",
+  "session_id": "fc896007-4787-42a0-9755-674b48f485c9",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-24T20:28:02.7213482Z",
+  "branch": "trail-actions",
+  "checkpoints_count": 2,
+  "save_step_count": 2,
+  "files_touched": [
+    "CLAUDE.md",
+    "README.md",
+    "docs/PLAN.md",
+    "panel/index.html",
+    "src/worker/actions.mjs",
+    "src/worker/git.mjs",
+    "src/worker/main.mjs",
+    "src/worker/snapshot.mjs",
+    "src/worker/trail.mjs",
+    "src/worker/trails.mjs",
+    "test/actions.test.mjs",
+    "test/panel.test.mjs",
+    "test/trail.test.mjs",
+    "test/trails.test.mjs"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-fable-5-1",
+  "turn_id": "5f33d554b471",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 1096,
+    "cache_creation_tokens": 318502,
+    "cache_read_tokens": 4788960,
+    "output_tokens": 65377,
+    "api_call_count": 38
+  },
+  "redaction": {
+    "replacements": 153,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 150,
+      "key_context": 3,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 2
+  }
+}

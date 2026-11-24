@@ -1,0 +1,19 @@
+we need to figure out a way to account for mulitple trails or prs being open in the same repo. right now it kind of only handles the 1 which is on the branch. We need to add both functionality and some sort of UI to handle this
+
+---
+
+<task-notification>
+<task-id>bdv1qlk5e</task-id>
+<tool-use-id>toolu_01Eij4gi3ivjsyPyPKB9UqgB</tool-use-id>
+<output-file>C:\Users\pcruc\AppData\Local\Temp\claude\7fb88310f07ab38d\fc896007-4787-42a0-9755-674b48f485c9\tasks\bdv1qlk5e.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the worker in the Orca harness against the WSL workspace" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+ok sounds good can we find a fix or workareound for the 30 plus second reads
+
+---
+
+ok cool commit and pr
